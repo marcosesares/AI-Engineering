@@ -19,6 +19,7 @@ Sibling to [/e2e-engineering](../e2e-engineering/SKILL.md). Headless implementat
 1. Load dispatch tools. `ToolSearch` → load `Agent` + `EnterWorktree`. Either fails → `<e2e-stall reason="fanout-unavailable" />` + EXIT. NEVER fall back to inline slice work.
 2. No driver, no lock, no context monitoring. No handoff docs, no checkpoint, no respawn.
 3. Orchestrator output = caveman-ultra, essential only (token discipline).
+4. **Init flow-retro tally (ADR 0027).** Start counters accumulated across this spawn for the [flow-retro](../../shared/skills/e2e-engineering/schemas/flow-retro.md): bounces (by tier), blocked slices + cause, gate-5 failures, stalls, fan-out waves (impl + review), rejected un-evidenced Criticals. Bump them as they occur in Steps 3/5; emit at Step 6.
 
 ---
 
@@ -116,6 +117,8 @@ Run [e2e-loop](../../shared/skills/e2e-engineering/impl/e2e-loop.md): author cro
 
 Write `tasks/<id>/qa-signoff.md` ([schema](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), caveman-ultra): manual test cases to walk, auto-verified ACs to eyeball, staged pending amendments. If gate 5 had failures, write `## Gate 5 Failures` section (each failing test/AC as a finding → triage entry for human to route into a new repair Task at QA sign-off). Do NOT run [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) — needs human. `/e2e-engineering` owns human review + replanning.
 
+Also write `tasks/<id>/flow-retro.md` ([schema](../../shared/skills/e2e-engineering/schemas/flow-retro.md), caveman-ultra) from the Step-0 tally (ADR 0027): **§Local retro** (process metrics for the team — bounces by tier, blocked slices + cause, gate-5 failures, stalls, fan-out waves, rejected un-evidenced Criticals) + **§Skill-improvement candidates** (friction that looks like an e2e-engineering TOOL defect, for upstream). SEPARATE from qa-signoff.md — keeps tool-facing signal out of the project QA doc. The human routes §Skill-improvement upstream at QA sign-off (third lane), NOT into the client queue.
+
 ---
 
 ## Step 7 — exit
@@ -139,6 +142,7 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - Automating UI with Playwright browser/POM, or opening the app for UI verification (Fork Y/ADR 0024 — UI is Manual → human-QA; automate unit+API only).
 - Marking Task `blocked` because gate 5 suite is red (record failures in qa-signoff.md → pending-qa instead — ADR 0025).
 - Skipping `## Gate 5 Failures` section when gate 5 had failures (human needs them to route repair Tasks).
+- Folding §Skill-improvement into qa-signoff.md, or routing it into the client queue — it's a separate `flow-retro.md` and an upstream lane (ADR 0027).
 - `git restore` wiping already-merged slices (uncommitted only).
 - Marking Task `done` instead of `pending-qa` after self-review passes (Step 5.1 — ADR 0018).
 - Marking Task `blocked` on self-review finding unless it's a constitution violation with no recoverable path.

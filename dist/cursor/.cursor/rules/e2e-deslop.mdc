@@ -1,0 +1,15 @@
+---
+description: e2e-deslop — recurring repo-wide architecture-deepening scan. Fans out one architecture-scout per eligible module area, surfaces refactor candidates, routes human-picked ones into the Task queue. Activate when the user says "de-slop", "deslop", "/e2e-deslop", "architecture scan", "scan for tech debt", "find refactor candidates", or "architecture deepening".
+alwaysApply: false
+---
+
+# e2e-deslop — repo-wide architecture-deepening scan (Cursor runtime)
+
+When the user invokes e2e-deslop ("de-slop", "deslop", "/e2e-deslop", "architecture scan", "scan for tech debt", "find refactor candidates", "architecture deepening"), follow the flow defined in [AGENTS.md](mdc:AGENTS.md) → `.agents/skills/e2e-deslop/SKILL.md`.
+
+**Cursor runtime constraints:**
+
+- Scouts are read-only; no worktree fan-out is needed. Step 0 capability probe requires `spawn_agent` to dispatch one architecture-scout per eligible area. If agent spawn is unavailable, Step 0 emits `<e2e-stall reason="fanout-unavailable" />` and exits — never falls back to inline area analysis.
+- If parallel slots are constrained, scouts run in bounded batches; the scan is still incremental via the scan ledger.
+
+For full-fidelity parallel execution, the Claude Code skill version is available: `npx e2e-engineering init --target claude`.

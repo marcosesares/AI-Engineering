@@ -5,14 +5,14 @@
     "email": "marcosesares@gmail.com"
   },
   "metadata": {
-    "description": "Engineering flow skills — idea to passing E2E.",
-    "version": "1.5.7"
+    "description": "Engineering flow skills — idea to verified code.",
+    "version": "1.6.0"
   },
   "plugins": [
     {
       "name": "e2e-engineering",
       "source": "./plugins/e2e-engineering",
-      "description": "Master engineering orchestrator: phase-adaptive flow, five hard gates, vertical-slice TDD loop with parallel subagents, context checkpointing. Greenfield/feature/bugfix/refactor + adopt mode.",
+      "description": "Master engineering orchestrator: phase-adaptive flow, four hard gates, vertical-slice TDD with parallel sub-agents, recurring architecture de-slop. Greenfield/feature/bugfix/refactor + adopt mode.",
       "category": "workflow"
     }
   ]
