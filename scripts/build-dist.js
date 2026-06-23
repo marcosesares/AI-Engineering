@@ -16,7 +16,7 @@ const SHARED_SKILLS_SRC = path.join(REPO, "skills");
 const CLAUDE_SKILLS_SRC = path.join(REPO, ".claude", "skills");
 const CODEX_SKILLS_SRC = path.join(REPO, ".agents", "skills");
 const CLAUDE_AGENTS_SRC = path.join(REPO, ".claude", "agents");
-const TOP_LEVEL_SKILLS = ["e2e-engineering", "e2e-flight", "grill-with-docs"];
+const TOP_LEVEL_SKILLS = ["e2e-engineering", "e2e-flight", "e2e-deslop", "grill-with-docs"];
 const SHARED_SKILLS = ["e2e-engineering", "grill-with-docs"];
 const DIST = path.join(REPO, "dist");
 const PLUGIN_DIR = path.join(REPO, "dist", "marketplace", "plugins", "e2e-engineering");
@@ -75,6 +75,7 @@ function main() {
   const codexSkillRewrites = [
     { skill: "e2e-engineering", replacements: [["../../../skills/e2e-engineering/", ""]] },
     { skill: "e2e-flight",       replacements: [["../../../skills/e2e-engineering/", "../e2e-engineering/"]] },
+    { skill: "e2e-deslop",       replacements: [["../../../skills/e2e-engineering/", "../e2e-engineering/"]] },
     { skill: "grill-with-docs",  replacements: [["../../../skills/grill-with-docs/", ""]] },
   ];
   for (const { skill, replacements } of codexSkillRewrites) {
@@ -121,7 +122,7 @@ function main() {
   const CURSOR_RULES_SRC = path.join(REPO, ".cursor", "rules");
   const CURSOR_RULES_DST = path.join(DIST, "cursor", ".cursor", "rules");
   fs.mkdirSync(CURSOR_RULES_DST, { recursive: true });
-  for (const mdc of ["e2e-engineering.mdc", "e2e-flight.mdc"]) {
+  for (const mdc of ["e2e-engineering.mdc", "e2e-flight.mdc", "e2e-deslop.mdc"]) {
     assertExists(path.join(CURSOR_RULES_SRC, mdc), ".cursor/rules/" + mdc);
     fs.copyFileSync(path.join(CURSOR_RULES_SRC, mdc), path.join(CURSOR_RULES_DST, mdc));
   }
@@ -136,7 +137,8 @@ function main() {
     path.join(REPO, "dist", "claude", "skills"),
     path.join(REPO, "dist", "codex", ".agents", "skills"),
     path.join(REPO, "dist", "cursor", ".cursor", "rules", "e2e-engineering.mdc"),
-    path.join(REPO, "dist", "cursor", ".cursor", "rules", "e2e-flight.mdc")
+    path.join(REPO, "dist", "cursor", ".cursor", "rules", "e2e-flight.mdc"),
+    path.join(REPO, "dist", "cursor", ".cursor", "rules", "e2e-deslop.mdc")
   ];
   const missing = required.filter((p) => !fs.existsSync(p));
   if (missing.length) {

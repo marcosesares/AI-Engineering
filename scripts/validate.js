@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 
 const REPO = path.resolve(__dirname, "..");
-const TOP_LEVEL_SKILLS = ["e2e-engineering", "e2e-flight", "grill-with-docs"];
+const TOP_LEVEL_SKILLS = ["e2e-engineering", "e2e-flight", "e2e-deslop", "grill-with-docs"];
 const SHARED_SKILLS = ["e2e-engineering", "grill-with-docs"];
 
 const errors = [];
@@ -156,6 +156,7 @@ function validateNoDeprecatedRoles() {
 const CODEX_SKILL_REWRITES = {
   "e2e-engineering": [["../../../skills/e2e-engineering/", ""]],
   "e2e-flight":       [["../../../skills/e2e-engineering/", "../e2e-engineering/"]],
+  "e2e-deslop":       [["../../../skills/e2e-engineering/", "../e2e-engineering/"]],
   "grill-with-docs":  [["../../../skills/grill-with-docs/", ""]],
 };
 

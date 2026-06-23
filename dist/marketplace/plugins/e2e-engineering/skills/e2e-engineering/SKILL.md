@@ -22,7 +22,7 @@ Durable project docs at repo ROOT: `CONTEXT.md` (glossary), [constitution](../..
 ## Step 0 — route mode
 
 - User invoked `/e2e-engineering adopt` → run [adopt](../../shared/skills/e2e-engineering/adopt.md). One-time onboarding, not per-task flow. Stop here.
-- User invoked `/e2e-engineering qa`, OR `queue.json` has any Task `status:pending-qa` → run **QA sign-off session** ([human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) multi-Task mode): walk every pending-qa Task's [qa-signoff.md](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), sign off (→ `done`), route findings through [triage](../../shared/skills/e2e-engineering/impl/triage.md) into new queue Tasks. Offer this first when pending-qa work exists. Stop here when done.
+- User invoked `/e2e-engineering qa`, OR `queue.json` has any Task `status:pending-qa` → run **QA sign-off session** ([human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) multi-Task mode): walk every pending-qa Task's [qa-signoff.md](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), sign off (→ `done`), route findings through [triage](../../shared/skills/e2e-engineering/impl/triage.md) into new queue Tasks, and forward each Task's [flow-retro](../../shared/skills/e2e-engineering/schemas/flow-retro.md) §Skill-improvement candidates upstream to the e2e-engineering repo (three distinct lanes — ADR 0027). Offer this first when pending-qa work exists. Stop here when done.
 - Otherwise → per-feature flow below (spec → gate 1 → queue → launch flight).
 
 ## Step 1 — detect phase + task type

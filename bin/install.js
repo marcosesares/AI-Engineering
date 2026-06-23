@@ -114,7 +114,7 @@ function installClaudeAgents(dest, opts, written) {
   copyRecursive(src, path.join(dest, ".claude", "agents"), opts, written);
 }
 
-const CLAUDE_SKILLS = ["e2e-engineering", "e2e-flight", "grill-with-docs"];
+const CLAUDE_SKILLS = ["e2e-engineering", "e2e-flight", "e2e-deslop", "grill-with-docs"];
 
 function installClaude(dest, opts, written) {
   installSharedSkills(dest, opts, written);
@@ -144,7 +144,7 @@ function installAgentsMd(dest, opts, written) {
   }
 }
 
-const CURSOR_RULES = ["e2e-engineering.mdc", "e2e-flight.mdc"];
+const CURSOR_RULES = ["e2e-engineering.mdc", "e2e-flight.mdc", "e2e-deslop.mdc"];
 
 function installCursor(dest, opts, written) {
   installSharedSkills(dest, opts, written);
