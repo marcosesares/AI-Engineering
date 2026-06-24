@@ -34,7 +34,7 @@ Preconditions: <env/data/login state>
 ## Findings (-> triage -> new queue Tasks)
 - (filled DURING QA session by human)
   - bug:  <desc>   -> new bugfix Task (parentTask=<this id>); this Task still goes done
-  - idea: <desc>   -> new feature Task (status:todo, unselected)
+  - idea: <desc>   -> new feature Task (status:needs-spec, unselected)
 
 ## Decision
 - [ ] Approve -> queue status: done

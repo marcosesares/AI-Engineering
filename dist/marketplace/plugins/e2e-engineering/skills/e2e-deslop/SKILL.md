@@ -43,7 +43,7 @@ Per returned manifest:
 
 ## Step 5 — triage + human pick
 Route all surfaced candidates through [triage](../../shared/skills/e2e-engineering/impl/triage.md) (externally-sourced intake — NOT born ready-for-agent). Present the candidate set (priority + blastRadius + behaviorPreserved) to the human. Human picks which become refactor Tasks:
-- Picked → append refactor Task to [queue.json](../../shared/skills/e2e-engineering/schemas/queue.json.md) (`status:todo`, `selected:false`, refactor-shaped — runs FULL flow, ADR 0012). `behaviorPreserved` seeds the safety-net acceptance criterion.
+- Picked → append refactor Task to [queue.json](../../shared/skills/e2e-engineering/schemas/queue.json.md) (`status:needs-spec`, `selected:false`, refactor-shaped — runs FULL flow incl. its own PRD, ADR 0012/0029). `behaviorPreserved` seeds the safety-net acceptance criterion.
 - Human marks an area won't-fix → set ledger `verdict:accepted` (mutes until reopened).
 - **HARD interactive STOP** — do NOT auto-create refactor Tasks. Human picks; deps and PRD come later via `/e2e-engineering`.
 

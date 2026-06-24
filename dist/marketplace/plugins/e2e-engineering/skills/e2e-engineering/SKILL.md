@@ -22,8 +22,16 @@ Durable project docs at repo ROOT: `CONTEXT.md` (glossary), [constitution](../..
 ## Step 0 — route mode
 
 - User invoked `/e2e-engineering adopt` → run [adopt](../../shared/skills/e2e-engineering/adopt.md). One-time onboarding, not per-task flow. Stop here.
-- User invoked `/e2e-engineering qa`, OR `queue.json` has any Task `status:pending-qa` → run **QA sign-off session** ([human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) multi-Task mode): walk every pending-qa Task's [qa-signoff.md](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), sign off (→ `done`), route findings through [triage](../../shared/skills/e2e-engineering/impl/triage.md) into new queue Tasks, and forward each Task's [flow-retro](../../shared/skills/e2e-engineering/schemas/flow-retro.md) §Skill-improvement candidates upstream to the e2e-engineering repo (three distinct lanes — ADR 0027). Offer this first when pending-qa work exists. Stop here when done.
-- Otherwise → per-feature flow below (spec → gate 1 → queue → launch flight).
+- User invoked `/e2e-engineering qa` (explicit arg) → skip the menu; run the **QA sign-off session** ([human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) multi-Task mode) over **every** `status:pending-qa` Task (same session as the Pending-QA bucket below, but no selection step). Stop here when done.
+- **Bare `/e2e-engineering` with a populated queue** — `queue.json` has ≥1 Task in `todo` OR `pending-qa` (and Step 1 found no single `in-progress` Task to resume) → **Front-door menu (ADR 0028).** Do NOT auto-route and do NOT fall through to a fresh spec. Ask the two-way fork, STOP for answer:
+  > **(1)** Specify a new task / idea, or **(2)** work on the existing queue?
+  - **(1) New** → per-feature flow below (spec → gate 1 → queue → launch flight).
+  - **(2) Existing queue** → present the queue as up to **three labeled buckets** (show only non-empty ones), each its own selectable checklist with priority + dependsOn; **STOP and wait** for the human's selection. Selection routes by bucket:
+    - **Ready for implementation** — `status:ready-for-flight` (PRD approved @ gate-1; ADR 0029). Select → **Launch sequence** (`→ On consent` step 3, **resume mode**) → `/e2e-flight`.
+    - **Pending spec** — `status:needs-spec` (queued idea, no PRD yet). Select → per-feature flow for that Task id (establish/confirm Task root, spec → gate 1 → flips to `ready-for-flight`).
+    - **Pending QA sign-off** — `status:pending-qa` Task. Select → **QA sign-off session** ([human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) multi-Task mode): walk every selected Task's [qa-signoff.md](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), sign off (→ `done`), route findings through [triage](../../shared/skills/e2e-engineering/impl/triage.md) into new queue Tasks, and forward each Task's [flow-retro](../../shared/skills/e2e-engineering/schemas/flow-retro.md) §Skill-improvement candidates upstream to the e2e-engineering repo (three distinct lanes — ADR 0027).
+  - **Direct selection.** If the human's reply already names specific Task ID(s), treat them as the chosen set per their bucket — no checklist re-presentation. Mixed-bucket selection: act per bucket. Ambiguous reply → re-present the buckets.
+- Otherwise (empty queue / fresh project) → per-feature flow below (spec → gate 1 → queue → launch flight).
 
 ## Step 1 — detect phase + task type
 
@@ -58,10 +66,15 @@ Sequence (bracketed = conditional): **[map-codebase? (brownfield)] → grill-wit
 **→ On consent: queue Task, then batch or launch.** Steps IN ORDER — each is human chokepoint, none auto-resolved:
 
 1. **Task body + brownfield check.** Verify task body complete at `.e2e-engineering/tasks/<id>/`. Do NOT copy/move from base. `<id>` fixed at Step 1. **Brownfield only:** verify `tasks/<id>/codebase-map.md` exists — missing → stall: `"Pre-impl incomplete — run map-codebase first."` Do not queue without it. **API-bearing task (any api/logic story hitting an endpoint):** verify `ARCHITECTURE.md §4.1` test architecture filled (stack-up, baseURL, auth, data isolation) — empty → stall: `"Fill ARCHITECTURE.md §4.1 test architecture before launch (ADR 0024)."` Do not queue without it.
-2. **Append to [queue.json](../../shared/skills/e2e-engineering/schemas/queue.json.md)** — entry `{ id, title, priority, dependsOn, status:todo, selected:false, parentTask:null }`. Ask human for `priority` + cross-Task `dependsOn` (camelCase). **New Tasks born `selected:false`** — selection only at checkbox in step 3.
-3. **Batch or launch?** Ask: *"Spec another feature, or launch flight now?"* — STOP for answer.
-   - **Another** → loop back to Pre-implementation for next feature — establish NEW Task root first. Queue grows.
-   - **Launch** → **Run-selection checkbox (HARD interactive STOP).** Present every `status:todo` Task with priority + dependsOn as unchecked checklist; ASK human which to drain THIS flight. **Do NOT pre-check all, do NOT assume "all", do NOT launch until human returns checked subset.** Only auto-addition allowed: unmet `dependsOn` of checked Task (warn: "billing-export needs auth-login — adding it"). Set `selected:true` ONLY on human-chosen set (+ pulled-in deps). Human checks nothing → do not launch.
+2. **Land in [queue.json](../../shared/skills/e2e-engineering/schemas/queue.json.md) as `ready-for-flight`** (ADR 0029) — two cases:
+   - **Was `needs-spec`** (existing queued idea just specced via the menu): FLIP its status `needs-spec → ready-for-flight`; keep its `priority`/`dependsOn`/`parentTask`. Do NOT append a duplicate.
+   - **New forward-flow feature** (not yet in queue): append entry `{ id, title, priority, dependsOn, status:ready-for-flight, selected:false, parentTask:null }`. Ask human for `priority` + cross-Task `dependsOn` (camelCase).
+   **Born `selected:false`** either way — selection only at checkbox in step 3.
+3. **Batch or launch?** Reachable two ways:
+   - **From new-spec consent** (this just finished steps 1–2): Ask *"Spec another feature, or launch flight now?"* — STOP for answer.
+     - **Another** → loop back to Pre-implementation for next feature — establish NEW Task root first. Queue grows.
+     - **Launch** → **Run-selection checkbox (HARD interactive STOP).** Present every `status:ready-for-flight` Task with priority + dependsOn as unchecked checklist; ASK human which to drain THIS flight. **Do NOT pre-check all, do NOT assume "all", do NOT launch until human returns checked subset.** Only auto-addition allowed: unmet `dependsOn` of checked Task (warn: "billing-export needs auth-login — adding it"). Set `selected:true` ONLY on human-chosen set (+ pulled-in deps). Human checks nothing → do not launch.
+   - **Resume mode** (Step 0, human already named ready Task ID(s) in their reply — ADR 0028): the named IDs ARE the human-chosen set; no checklist re-presentation. Verify each is `status:ready-for-flight` (ADR 0029). Auto-add only unmet `dependsOn` (warn). Set `selected:true` on that set, then proceed to step 4. Reply ambiguous / no valid ready ID → fall back to the unchecked checklist STOP above.
 4. **Invoke [/e2e-flight](../e2e-flight/SKILL.md)** for first selected Task. **Flight implements ONE Task per invocation, then exits (ADR 0022).** Tell human: "Flight implements one Task per `/e2e-flight` run. I've kicked off `<id>`; re-run `/e2e-flight` for each remaining selected Task, then `/e2e-engineering` to QA sign-off. Watch progress tailing `tasks/<id>/progress.txt`."
 
 Each `/e2e-flight` invocation is fresh context — pre-impl grilling never contaminates implementation.

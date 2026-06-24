@@ -29,12 +29,12 @@ Sibling to [/e2e-engineering](../e2e-engineering/SKILL.md). Headless implementat
 Read `.e2e-engineering/queue.json` (offset/limit — only what you need).
 
 - User named Task → take it.
-- Else pick: `status:todo` AND every `dependsOn` in {done, pending-qa}, highest priority first.
+- Else pick: `status:ready-for-flight` AND every `dependsOn` in {done, pending-qa}, highest priority first (ADR 0029). `needs-spec` Tasks are NOT pickable — they have no approved PRD.
 - No pickable Task → `<e2e-complete />` + EXIT.
 
 **Master-clean check.** `git status` on master — any uncommitted changes → `<e2e-stall reason="master-dirty — commit or clean before flight" />` + EXIT.
 
-**Task lock + branch.** Commit `queue.json` status `todo→in-progress` to master. Then `git checkout -b task/<id>` from master. Orchestrator works on `task/<id>` throughout. Sub-agents work in isolated branches. Master not touched again until Step 5.1.
+**Task lock + branch.** Commit `queue.json` status `ready-for-flight→in-progress` to master. Then `git checkout -b task/<id>` from master. Orchestrator works on `task/<id>` throughout. Sub-agents work in isolated branches. Master not touched again until Step 5.1.
 
 Task root: `.e2e-engineering/tasks/<id>/`.
 
