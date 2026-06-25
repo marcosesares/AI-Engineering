@@ -1,6 +1,6 @@
 {
   "name": "e2e-engineering",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Master engineering orchestrator skill — idea to passing E2E across pre-implementation, implementation, and post-implementation phases. Installs dual-runtime Claude Code and Codex skill trees with shared core content.",
   "bin": {
     "e2e-engineering": "bin/install.js"
