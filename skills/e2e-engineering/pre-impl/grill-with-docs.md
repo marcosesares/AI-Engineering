@@ -25,11 +25,14 @@ Interview user relentlessly until shared, concrete understanding. Walk each bran
 Before exiting, decide and record which conditional steps fire:
 - **research?** — YES if task leans on external APIs / unfamiliar libs / unknown protocols.
 - **prototype?** — YES if taste/UX or state-machine uncertainty needs concrete feedback. Pick branch: **ui** (visual variants) or **logic** (state machine / terminal).
+- **design?** — fires the [design](design.md) step (sets register, seeds/records DESIGN.md). Explicit YES/NO:
+  - **YES** if the task adds/changes a user-visible screen/page/route · creates/edits a component with visual presentation · the PRD says button/form/modal/layout/styling/UX/visual · any greenfield with a UI · a brand/marketing surface.
+  - **NO** if pure API/backend/data/schema · CLI/script with no rendered output · refactor with zero visual change · non-visual bugfix.
 
 (map-codebase NOT gated here — already ran before this skill, driven by taskType.)
 
 ## Exit
-User approves direction → hand caveman:ultra brainstorm notes + conflict-free language + conditional-step decisions to orchestrator, which sequences research / prototype / to-prd. Language reconciled here → Implementation skips straight to to-issues (no second grill).
+User approves direction → hand caveman:ultra brainstorm notes + conflict-free language + conditional-step decisions to orchestrator, which sequences research / prototype / design / to-prd. Language reconciled here → Implementation skips straight to to-issues (no second grill).
 
 ## Red flags (stop)
 - Building anything here — brainstorm only.
