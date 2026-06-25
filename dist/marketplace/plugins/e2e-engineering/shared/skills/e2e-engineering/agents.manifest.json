@@ -18,7 +18,15 @@
     },
     "frontend-reviewer": {
       "claude_name": "frontend-reviewer",
-      "description": "UI/UX designer reviewer. Reviews ONE green ui slice in its worktree against the PRD, constitution, and (brownfield) scoped ARCHITECTURE.md before merge. Checks component reuse, design-system consistency, accessibility, states, responsive behavior. Read-only — returns findings, never edits. Dispatched by /e2e-flight's expert-review wave for ui slices.",
+      "description": "UI/UX slice reviewer. Reviews ONE green ui slice in its worktree against the PRD, constitution, the ui-design anti-slop standard, the approved DESIGN.md, and (brownfield) scoped ARCHITECTURE.md before merge. Checks component reuse, design-system consistency, accessibility, states, responsive behavior. Read-only — returns findings, never edits. Dispatched by /e2e-flight's expert-review wave for ui slices.",
+      "tools": ["Read", "Grep", "Glob"],
+      "model": null,
+      "sandbox_mode": "read-only",
+      "mcp_servers": []
+    },
+    "product-designer": {
+      "claude_name": "product-designer",
+      "description": "Design advisor (acts on the spec, pre-build). Advises the PRD draft against the project DESIGN.md and the ui-design anti-slop standard BEFORE any code exists. Bakes design requirements — register, states, a11y, reuse, anti-slop risk — into acceptance criteria and surfaces what DESIGN.md must seed. Read-only, advisory not a gate — returns findings, never edits. Consulted by /e2e-engineering's to-prd expert-agent wave for UI-bearing tasks.",
       "tools": ["Read", "Grep", "Glob"],
       "model": null,
       "sandbox_mode": "read-only",

@@ -1,0 +1,13 @@
+## Story Log
+init | 2026-06-25 gate-1 PASSED (PRD approved) | wrote prd.json + codebase-map.md | impl NOT started, 9 slices todo | VEHICLE = pragmatic fresh-session drain, NOT /e2e-flight | GATE = `npm run build && npm run validate` -> "validate: ok"
+
+drain | 2026-06-25 ALL 9 SLICES DONE | pragmatic fresh-session drain, commit-per-slice on branch feat/ui-design-capability | S1 ui-design.md standard, S2 design.md schema, S3 product-designer agent+manifest, S4 design.md sub-skill, S5 ADR 0030, S6 wired grill/to-prd/prototype/tdd/frontend-reviewer, S7 4x SKILL.md (eng+flight, both runtimes lockstep), S8 CONTEXT+README, S9 wrappers+dist+validate
+GATE | `npm run build && npm run validate` -> "validate: ok" | clean-room re-validated in detached worktree (fresh checkout green) | zero literal `ui-designer` across active roots; product-designer wrapper emitted, no ghost
+S7-RESOLVED | .agents/skills/*/SKILL.md are TRACKED hand-edited Codex source (the /.agents gitignore line postdates them; tracked files override ignore) — lockstep-edited with .claude/skills; prd S7 note "untracked" was wrong. build reads .agents/skills (build-dist.js:65) + overlays canonical skills/ -> dist/codex
+CRUFT-REMOVED | found pre-existing untracked gitignored embedded sub-skill copies under .agents/skills/{e2e-engineering,grill-with-docs} (stale, broken links, from prior local build) blocking validate; git clean -fdX restored entry-point-only layout matching base; dist/codex rebuilt pure
+
+## Pending Amendments
+SKILL-CANDIDATE flight-no-docs-lane | /e2e-flight mis-fits no-test docs/tooling Tasks: tdd gate-2 (red-before-green) HARD, no markdown/no-test escape; verification gate-5 runs Vitest/Playwright suite NOT build+validate; per-slice gap-check escalates on empty testCases[]; expert-review wave low-value on markdown. Route UPSTREAM (e2e-engineering maintainer), NOT a project standard.
+
+## Blocked
+(none)

@@ -1,0 +1,205 @@
+{
+  "project": "e2e-engineering",
+  "description": "Add a native UI/UX design capability to the e2e-engineering flow: a generic ui-design anti-slop standard, a DESIGN.md schema (Stitch format), a conditional pre-impl `design` sub-skill, a `product-designer` advisor agent, plus wiring across SKILL entry points, sub-skills, durable docs, and routers. Spec/code-only (Fork Y; no image-gen in the flow). Brownfield self-modifying docs/tooling Task. VERIFICATION GATE = `npm run build && npm run validate` -> `validate: ok` (NO Vitest/Playwright; no unit/API/UI tests apply). `sliceType` values are nominal (docs task, not a code DAG). Implements plan synthetic-booping-cocke.md. OUT OF SCOPE: v1.9.0 version bump + release commit; image-gen design path; un-deprecating the `ui-designer` token.",
+  "taskType": "feature",
+  "baseBranch": "main",
+  "stories": [
+    {
+      "id": "ui-design-standard",
+      "title": "Generic ui-design anti-slop standard",
+      "description": "New standards/ui-design.md, caveman-ultra, mirroring standards/api-testing.md. Generic UI/UX taste + anti-slop rules, Product-register by default, brand rules register-gated. Injected into `ui` slices; read by product-designer + frontend-reviewer.",
+      "acceptanceCriteria": [
+        "File skills/e2e-engineering/standards/ui-design.md exists, caveman-ultra, mirrors api-testing.md shape.",
+        "Register-first section: Product (default: dense, predictable, readable states, quiet motion, a11y/audit-first) vs Brand (gated). Every rule notes its register; reader checks DESIGN.md Overview register before applying.",
+        "Covers 7 areas: Typography (ban overused defaults as whole identity; pair display+body; >=1.25x hierarchy; line-height 1.5-1.7; body >=14px), Color (OKLCH + descriptive names; tint black/grays; ban AI palette + gradient text), Layout (no nested cards; radius 12-16px; max-width 65-75ch; >=16px padding), Components (reuse owned; loading/empty/error/:active/disabled states; WCAG AA; no placeholder-as-label), Motion (transform/opacity only; ban bounce/elastic; prefers-reduced-motion mandatory; brand-gated scroll choreography), Accessibility (AA contrast, focus order, roles, keyboard, no skipped heading levels), Anti-slop tells (concrete catalog subset: side-tab border accent, icon-tile-above-heading, identical 3-card grids, numbered eyebrows, hero version labels, div fake screenshots, filler copy).",
+        "Each rule tagged enforcement layer: `slice-reviewer` (source-readable) vs `human-QA/LLM` (needs rendered layout — line length/overflow/contrast/padding ride to human-QA per Fork Y).",
+        "Em-dash ban scoped to GENERATED UI COPY ONLY, with explicit note it does NOT apply to caveman skill docs.",
+        "Project-override note: DESIGN.md overrides this baseline where they conflict (same rule as api-testing.md vs ARCHITECTURE.md section 4)."
+      ],
+      "priority": 1,
+      "sliceType": "tracer",
+      "depends_on": [],
+      "status": "done",
+      "branch": "",
+      "testCases": [],
+      "integration": "",
+      "notes": "Net-new, no contention. Verification: link/JSON pass deferred to build-validate story.",
+      "resultManifestPath": null,
+      "reviewManifestPath": null
+    },
+    {
+      "id": "design-schema",
+      "title": "DESIGN.md schema (Stitch cross-tool format)",
+      "description": "New schemas/design.md documenting the durable DESIGN.md format. Mirrors schemas/architecture.md governance.",
+      "acceptanceCriteria": [
+        "File skills/e2e-engineering/schemas/design.md exists.",
+        "Documents DESIGN.md Stitch format, 6 fixed sections in fixed order/names: 1 Overview (Creative North Star metaphor + register Brand/Product + brand voice in 3 real words), 2 Colors (OKLCH, descriptive names), 3 Typography, 4 Elevation, 5 Components, 6 Do's & Don'ts; then trailing §Index (line numbers, written last, for offset/limit).",
+        "Notes: repo-root; human-phase-written ONLY (pre-impl seed + post-impl amend); READ-only in flight; greenfield may carry provisional `<!-- SEED -->` marker until components exist.",
+        "Carries explicit 'rewrite §Index line numbers after every edit' instruction (matches ARCHITECTURE.md schema discipline)."
+      ],
+      "priority": 2,
+      "sliceType": "schema",
+      "depends_on": [],
+      "status": "done",
+      "branch": "",
+      "testCases": [],
+      "integration": "",
+      "notes": "Net-new, no contention.",
+      "resultManifestPath": null,
+      "reviewManifestPath": null
+    },
+    {
+      "id": "product-designer-agent",
+      "title": "product-designer advisor agent + manifest role",
+      "description": "New agents/product-designer.md (read-only design advisor, mirrors backend-architect.md) + agents.manifest.json role entry + frontend-reviewer desc refinement.",
+      "acceptanceCriteria": [
+        "File skills/e2e-engineering/agents/product-designer.md exists, mirrors backend-architect.md shape (read-only advisor, no edits).",
+        "Inputs documented: PRD draft, DESIGN.md, ui-design.md, (brownfield) scoped UI slice of codebase-map.md.",
+        "Return contract: `verdict: clean | findings` then `- [Important|Minor] <story/AC> — <design risk>. <AC suggestion>.` NO Critical (advisor, not a gate).",
+        "Spec states division vs frontend-reviewer: advisor acts on the spec pre-build (bakes design reqs into AC + seeds DESIGN.md); reviewer acts on the built slice post-green; hand-off = DESIGN.md + AC.",
+        "agents.manifest.json gains `product-designer` role: tools [Read, Grep, Glob], sandbox_mode read-only, advisor description.",
+        "frontend-reviewer manifest description refined to 'UI/UX slice reviewer' to disambiguate from the advisor.",
+        "Literal string `ui-designer` absent from all new/edited files."
+      ],
+      "priority": 3,
+      "sliceType": "logic",
+      "depends_on": ["ui-design-standard", "design-schema"],
+      "status": "done",
+      "branch": "",
+      "testCases": [],
+      "integration": "",
+      "notes": "Wrapper generation deferred to build-validate story.",
+      "resultManifestPath": null,
+      "reviewManifestPath": null
+    },
+    {
+      "id": "design-subskill",
+      "title": "Conditional pre-impl `design` sub-skill",
+      "description": "New pre-impl/design.md, conditional interactive human-phase sub-skill fired by the design? trigger. Mirrors research.md/prototype.md conditional shape.",
+      "acceptanceCriteria": [
+        "File skills/e2e-engineering/pre-impl/design.md exists.",
+        "First move: set register (Brand vs Product) — the pivotal calibration.",
+        "Greenfield branch: scan-then-confirm interview (register, who-for, voice in 3 real words, named visual references, anti-references, a11y needs) -> agent drafts DESIGN.md in Stitch format (+ §Index), provisional `<!-- SEED -->` until components exist, approved at gate 1.",
+        "Brownfield branch: recognize existing design language from codebase-map UI section + code -> DESIGN.md records REALITY; ui-design.md violations recorded as flagged deviations/candidates for the human (never silently corrected).",
+        "Reads ui-design.md. Spec/code-only (no image-gen; may point to throwaway prototype ui-branch). Feeds audience + anti-references to to-prd.",
+        "Red flags: skipping register; producing final UI here (direction only); writing impl detail into DESIGN.md; flight writing DESIGN.md (read-only there)."
+      ],
+      "priority": 4,
+      "sliceType": "logic",
+      "depends_on": ["ui-design-standard", "design-schema"],
+      "status": "done",
+      "branch": "",
+      "testCases": [],
+      "integration": "",
+      "notes": "",
+      "resultManifestPath": null,
+      "reviewManifestPath": null
+    },
+    {
+      "id": "adr-0030",
+      "title": "ADR 0030 — UI design system + design advisor",
+      "description": "New docs/adr/0030-ui-design-system-and-design-advisor.md recording the decision set.",
+      "acceptanceCriteria": [
+        "File docs/adr/0030-ui-design-system-and-design-advisor.md exists.",
+        "Records: DESIGN.md durable doc in Stitch cross-tool format; one-file decision (register/voice in Overview, audience/anti-refs in PRD — no PRODUCT.md); ui-design.md standard (Product-default, brand register-gated); conditional design pre-impl step; the design advisor agent; why `product-designer` not the deprecated `ui-designer` name; division of labour vs frontend-reviewer; spec/code-only (Fork Y) stance; optional `npx impeccable detect` deterministic hook.",
+        "Contains NO literal `ui-designer` string (refer to 'the design advisor' / product-designer)."
+      ],
+      "priority": 5,
+      "sliceType": "logic",
+      "depends_on": ["ui-design-standard", "design-schema", "product-designer-agent", "design-subskill"],
+      "status": "done",
+      "branch": "",
+      "testCases": [],
+      "integration": "",
+      "notes": "ADR slot 0030 confirmed next (last on disk 0029).",
+      "resultManifestPath": null,
+      "reviewManifestPath": null
+    },
+    {
+      "id": "wire-subskills",
+      "title": "Wire pre-impl/impl sub-skills + frontend-reviewer to design",
+      "description": "Edit existing sub-skill bodies to integrate the design step, advisor, standard, and DESIGN.md.",
+      "acceptanceCriteria": [
+        "grill-with-docs.md: add `design?` gate with explicit YES/NO rules (YES: adds/changes user-visible screen/route; component with visual presentation; PRD says button/form/modal/layout/styling/UX/visual; any greenfield with UI; brand/marketing surface. NO: pure API/backend/data/schema; CLI/script with no rendered output; refactor with zero visual change; non-visual bugfix). Sits alongside research?/prototype?.",
+        "to-prd.md: swap UI advisor frontend-reviewer -> product-designer; read DESIGN.md; capture audience + anti-references into the PRD; add red-flag for UI-bearing task with empty/missing DESIGN.md (run design step first), mirror of the §4.1 test-architecture stall.",
+        "prototype.md: ui-branch references ui-design.md + feeds conclusions into DESIGN.md/to-prd; note image-gen is an allowed throwaway aid here only.",
+        "tdd.md: `ui` slices also receive ui-design.md + the scoped slice of DESIGN.md (mirror api-testing-standard injection); expert-review-wave line notes frontend-reviewer reviews against DESIGN.md.",
+        "frontend-reviewer.md: checks built slice against ui-design.md (all 7 areas, normal severity incl. Critical for real defects) + approved DESIGN.md (deviation = Important: fix or justify, not a hard block unless also an anti-slop Critical); add division note (reviewer=code/post-green; product-designer=spec/pre-build).",
+        "All internal markdown links resolve."
+      ],
+      "priority": 6,
+      "sliceType": "logic",
+      "depends_on": ["ui-design-standard", "design-schema", "product-designer-agent", "design-subskill"],
+      "status": "done",
+      "branch": "",
+      "testCases": [],
+      "integration": "",
+      "notes": "Touches existing sub-skill bodies; no entry-point SKILL.md here (that is wire-entrypoints).",
+      "resultManifestPath": null,
+      "reviewManifestPath": null
+    },
+    {
+      "id": "wire-entrypoints",
+      "title": "Wire SKILL entry points (eng + flight, lockstep x runtime)",
+      "description": "Edit the four runtime-coupled SKILL.md entry points in lockstep.",
+      "acceptanceCriteria": [
+        ".claude/skills/e2e-engineering/SKILL.md + .agents/skills/e2e-engineering/SKILL.md (lockstep): pre-impl sequence inserts `[design? (has-ui)]` before to-prd, with a numbered step entry + link to pre-impl/design.md; to-prd expert-agents bullet -> product-designer for the UI lens + mention DESIGN.md; durable-docs paragraph adds DESIGN.md (human-phase-written, flight read-only) beside CONTEXT.md / ARCHITECTURE.md / constitution.",
+        ".claude/skills/e2e-flight/SKILL.md + .agents/skills/e2e-flight/SKILL.md (lockstep): Step 3 fan-out inject list — `ui` slices also get ui-design.md + scoped DESIGN.md; Step 3 expert-review-wave ui line — frontend-reviewer reviews vs DESIGN.md.",
+        "Both runtime copies are content-identical (lockstep). All links resolve via the ../../../skills/e2e-engineering/... convention."
+      ],
+      "priority": 7,
+      "sliceType": "logic",
+      "depends_on": ["ui-design-standard", "design-schema", "design-subskill"],
+      "status": "done",
+      "branch": "",
+      "testCases": [],
+      "integration": "",
+      "notes": "Lockstep both runtimes — edit in pairs to avoid drift. RESOLVE FIRST: /.agents is gitignored here; .agents/skills/.../SKILL.md exist on disk but untracked, while dist/codex/.agents/... IS tracked. Read scripts/build-dist.js to determine whether codex entry points are hand-edited source or build-generated. If generated: edit only .claude/skills/ + shared skills/, then `npm run build` regenerates .agents/ + dist (do NOT hand-edit .agents/). Plan items #12-13 assume lockstep hand-edit — verify.",
+      "resultManifestPath": null,
+      "reviewManifestPath": null
+    },
+    {
+      "id": "wire-docs-routers",
+      "title": "Seed CONTEXT.md glossary + README + routers",
+      "description": "Durable-doc + router touch-ups.",
+      "acceptanceCriteria": [
+        "CONTEXT.md: seed glossary terms — register (Brand vs Product), Creative North Star, design system (DESIGN.md), design token, anti-slop, design advisor (product-designer). Light touch.",
+        "README.md: skills sub-skill list + expert-agents line (product-designer advises the PRD; design pre-impl step; DESIGN.md durable doc); pre-impl sequence line in 'How it works'. Clears the queued README reconcile.",
+        "AGENTS.md + .cursor/rules/e2e-engineering.mdc: add the design step ONLY if they enumerate the pre-impl sequence (open and check first; .mdc defers to AGENTS.md; keep terse)."
+      ],
+      "priority": 8,
+      "sliceType": "logic",
+      "depends_on": ["design-subskill"],
+      "status": "done",
+      "branch": "",
+      "testCases": [],
+      "integration": "",
+      "notes": "",
+      "resultManifestPath": null,
+      "reviewManifestPath": null
+    },
+    {
+      "id": "build-validate",
+      "title": "Generate wrappers, build dist, validate green (GATE)",
+      "description": "Run generated/build steps and the primary verification gate. Do not hand-edit outputs.",
+      "acceptanceCriteria": [
+        "`pwsh skills/e2e-engineering/scripts/generate-agent-wrappers.ps1 -DryRun` shows it would emit .claude/agents/product-designer.md and NO ui-designer.md ghost; then a real run emits the wrapper (frontmatter from manifest + spec body).",
+        "`npm run build` (build-dist.js) syncs dist/** (claude; codex with embedded sub-skills + path rewrites; marketplace; cursor).",
+        "`npm run validate` -> `validate: ok` (dist freshness, markdown-link integrity, JSON validity, deprecated-role guard, codex dist embedding).",
+        "Grep working tree for literal `ui-designer` -> zero hits in new/edited files.",
+        "Codex dist present + path-rewritten: dist/codex/.agents/skills/e2e-engineering/{pre-impl/design.md, standards/ui-design.md, schemas/design.md, agents/product-designer.md}.",
+        "Dry walk-through: updated pre-impl sequence reads `grill-with-docs -> [design?] -> to-prd` coherently; to-prd consults product-designer."
+      ],
+      "priority": 9,
+      "sliceType": "logic",
+      "depends_on": ["ui-design-standard", "design-schema", "product-designer-agent", "design-subskill", "adr-0030", "wire-subskills", "wire-entrypoints", "wire-docs-routers"],
+      "status": "done",
+      "branch": "",
+      "testCases": [],
+      "integration": "",
+      "notes": "Terminal gate. validate.js is whole-repo; only green once all links resolve.",
+      "resultManifestPath": null,
+      "reviewManifestPath": null
+    }
+  ]
+}

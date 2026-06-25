@@ -1,0 +1,13 @@
+{
+  "tasks": [
+    {
+      "id": "ui-design-capability",
+      "title": "Add UI/UX design capability to e2e-engineering flow",
+      "priority": 1,
+      "dependsOn": [],
+      "status": "ready-for-flight",
+      "selected": false,
+      "parentTask": null
+    }
+  ]
+}

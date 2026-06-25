@@ -5,8 +5,10 @@ Fires when taste/UX or state-machine uncertainty needs concrete feedback. grill-
 ## Branch: ui
 For visual / UX / interaction uncertainty.
 - Build quick visual variants. Cheap, disposable.
-- Feedback loop: browser-driven — render and look (Playwright MCP / screenshots). Show user variants, let them react.
+- Reference the [ui-design standard](../standards/ui-design.md) (register + anti-slop) while exploring — so variants avoid known tells.
+- Feedback loop: browser-driven — render and look (Playwright MCP / screenshots). Show user variants, let them react. **Image generation is an allowed throwaway aid HERE ONLY** (never in the flow proper — Fork Y is spec/code-only).
 - Goal: resolve taste/layout/flow questions before committing to PRD.
+- Feed conclusions into [DESIGN.md](../schemas/design.md) (via the [design](design.md) step) and to-prd — the prototype is thrown away, the taste call is kept.
 
 ## Branch: logic
 For state-machine / algorithm / terminal-app uncertainty.
