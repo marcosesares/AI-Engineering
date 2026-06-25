@@ -1,2 +1,4 @@
 /node_modules
 .mcp.json
+/.agents
+AGENTS.e2e-engineering.md
