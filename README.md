@@ -31,9 +31,9 @@ Installing drops **four top-level skills** plus a shared sub-skill tree they seq
 | `/e2e-deslop` | Recurring, repo-wide architecture-deepening scan. Fans out an `architecture-scout` per eligible module area, surfaces refactor candidates, routes human-picked ones into the queue. Incremental via a durable scan ledger. Never auto-refactors. |
 | `/grill-with-docs` | Doc-aware brainstorm that reconciles language against `CONTEXT.md` before building. Used inside pre-implementation; also invokable standalone. |
 
-Everything else — `map-codebase`, `research`, `prototype`, `to-prd`, `to-issues`, `triage`, `tdd`, `systematic-debugging`, `e2e-loop`, `verification`, `review`, `human-qa` — is a **sub-skill** the orchestrator sequences, not a separate command.
+Everything else — `map-codebase`, `research`, `prototype`, `design`, `to-prd`, `to-issues`, `triage`, `tdd`, `systematic-debugging`, `e2e-loop`, `verification`, `review`, `human-qa` — is a **sub-skill** the orchestrator sequences, not a separate command. The conditional `design` step (ADR 0030) sets the visual register and seeds the `DESIGN.md` design system for UI-bearing Tasks.
 
-Four expert reviewer agents (`backend-architect`, `dba`, `frontend-reviewer`, `test-reviewer`) advise the PRD and review built slices; a fifth, `architecture-scout`, powers `/e2e-deslop`.
+Four expert reviewer agents (`backend-architect`, `dba`, `frontend-reviewer`, `test-reviewer`) review built slices, with `backend-architect`/`dba` also advising the PRD; a dedicated **design advisor** (`product-designer`) advises the PRD's UI lens against `DESIGN.md` + the `ui-design` anti-slop standard before any code is built; `architecture-scout` powers `/e2e-deslop`.
 
 In Claude Code, after install: restart/refresh, then type `/e2e-engineering`. Triggers also include "ship-it", "ship it", "implement feature X", "write e2e for X", "build this end to end", "run the full flow".
 
@@ -41,7 +41,7 @@ In Claude Code, after install: restart/refresh, then type `/e2e-engineering`. Tr
 
 **Three phases, one Task at a time.**
 
-1. **Pre-implementation** (`/e2e-engineering`, human-driven): `[map-codebase (brownfield)] → grill-with-docs → [research?] → [prototype?] → to-prd`. Produces an approved `prd.json`. Expert agents advise the PRD so it is architecture-aware. **Gate 1** (PRD approved) is a hard human chokepoint; the Task is then appended to `queue.json`.
+1. **Pre-implementation** (`/e2e-engineering`, human-driven): `[map-codebase (brownfield)] → grill-with-docs → [research?] → [prototype?] → [design? (has-ui)] → to-prd`. Produces an approved `prd.json`. Expert agents advise the PRD so it is architecture-aware; for UI-bearing Tasks the conditional `design` step sets the register and seeds `DESIGN.md`, and the `product-designer` advisor bakes design requirements into the acceptance criteria. **Gate 1** (PRD approved) is a hard human chokepoint; the Task is then appended to `queue.json`.
 2. **Implementation** (`/e2e-flight`, headless): `to-issues` splits the PRD into a `depends_on` slice DAG; flight computes the ready set and **fans out** one sub-agent per slice into its own git worktree, each running `tdd` (red-green-refactor). An **expert-review wave** reviews each green slice before the orchestrator merges it. One Task per spawn, then exit — re-invoke for the next.
 3. **Post-implementation**: a fresh-context `review`, then the batched **QA sign-off session** where the human walks the Manual test scripts and signs off.
 
@@ -59,7 +59,7 @@ Coverage / lint / style are **soft** gates — overridable with logged justifica
 
 **Fork Y (ADR 0024).** Only **unit + API/integration** are automated — unit via Vitest/Jest, every API call via Playwright `request` against the real stack. **UI is Manual**: UI test cases become the human-QA walk script. No browser/POM automation, no agent-driven live-UI checks.
 
-**State lives under `.e2e-engineering/`.** `queue.json` (the Task backlog) at the root; each Task body under `tasks/<id>/` — `prd.json`, `progress.txt`, `codebase-map.md` (brownfield), `research.md`, `test-cases/`, `qa-signoff.md`, `flow-retro.md`, `manifests/<story-id>/` (evidence sidecars). Durable repo-root docs: `CONTEXT.md` (glossary), `ARCHITECTURE.md` (project structure, human-written), the constitution (generic standards). **No handoff docs, no context-monitoring checkpoints** — a fresh session resumes from these state files (ADR 0022).
+**State lives under `.e2e-engineering/`.** `queue.json` (the Task backlog) at the root; each Task body under `tasks/<id>/` — `prd.json`, `progress.txt`, `codebase-map.md` (brownfield), `research.md`, `test-cases/`, `qa-signoff.md`, `flow-retro.md`, `manifests/<story-id>/` (evidence sidecars). Durable repo-root docs: `CONTEXT.md` (glossary), `ARCHITECTURE.md` (project structure, human-written), `DESIGN.md` (project design system — register, tokens, components — human-written, flight read-only, ADR 0030), the constitution (generic standards). **No handoff docs, no context-monitoring checkpoints** — a fresh session resumes from these state files (ADR 0022).
 
 **Incremental de-slop (ADR 0026).** `/e2e-deslop` scans module areas, skipping any that are clean/accepted and unchanged since their last scan (a durable `scan-ledger.json` keyed to a content hash). Surfaced candidates flow through `triage`; the human picks which become refactor Tasks.
 
@@ -224,7 +224,7 @@ That third lane is the **learning report** (`flow-retro.md`, ADR 0027): process 
 ```text
 1. Ready the codebase     — deep modules, seams, tests at boundaries; /e2e-deslop surfaces candidates
 2. Shared language        — CONTEXT.md + grill-with-docs; ADRs for hard-to-reverse decisions
-3. Idea → PRD             — map (brownfield) → grill → research?/prototype? → to-prd → GATE 1
+3. Idea → PRD             — map (brownfield) → grill → research?/prototype?/design? → to-prd → GATE 1
 4. PRD → vertical slices  — to-issues emits the depends_on DAG; tracer-bullet the risky parts
 5. Implement (flight)     — fan-out to worktree sub-agents; TDD red→green→refactor (GATE 2/3)
 6. Review                 — per-slice spec+quality, expert-review wave, fresh post-impl review
