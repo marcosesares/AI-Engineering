@@ -60,7 +60,7 @@ Sole writer: only orchestrator writes `prd.json` + `progress.txt` + evidence sid
 Repeat until DAG drained (every slice `done` or `blocked`):
 
 1. **Compute ready set** — slices whose `depends_on` are all `done` AND own `status: todo`.
-2. **Fan-out impl wave** — dispatch each ready slice to its OWN git worktree + sub-agent (`EnterWorktree` + `Agent`). Run [tdd](../../shared/skills/e2e-engineering/impl/tdd.md). Parallel ONLY across disjoint file sets (same-file slices serialized by `depends_on` in to-issues). Inject: [constitution](../../shared/skills/e2e-engineering/constitution.md) + [api-testing standard](../../shared/skills/e2e-engineering/standards/api-testing.md) + slice (acceptanceCriteria, sliceType, `integration` decision) + testCases + (brownfield) SCOPED slice of `ARCHITECTURE.md` (use §Index for offset/limit on the relevant sections).
+2. **Fan-out impl wave** — dispatch each ready slice to its OWN git worktree + sub-agent (`EnterWorktree` + `Agent`). Run [tdd](../../shared/skills/e2e-engineering/impl/tdd.md). Parallel ONLY across disjoint file sets (same-file slices serialized by `depends_on` in to-issues). Inject: [constitution](../../shared/skills/e2e-engineering/constitution.md) + [api-testing standard](../../shared/skills/e2e-engineering/standards/api-testing.md) + slice (acceptanceCriteria, sliceType, `integration` decision) + testCases + (brownfield) SCOPED slice of `ARCHITECTURE.md` (use §Index for offset/limit on the relevant sections). **`ui` slices ALSO get the [ui-design standard](../../shared/skills/e2e-engineering/standards/ui-design.md) + the SCOPED slice of `DESIGN.md`** (register + relevant tokens/components, §Index offset/limit; READ-only in flight — ADR 0030).
 
    **Worktree env/config bootstrap** (immediately after `EnterWorktree`, before sub-agent dispatch). Copy cached docker env file list (from Step 2) into the worktree. Use `cp`/`Copy-Item`. Do NOT stage/commit these files — untracked, cleaned by `ExitWorktree`. Required file missing from main tree → sub-agent surfaces it as a blocker in slice result manifest, does not silently skip.
 
@@ -73,7 +73,7 @@ Repeat until DAG drained (every slice `done` or `blocked`):
 3. **Expert-review wave (in worktree, BEFORE merge).** Slice green → dispatch role reviewer agents **in parallel** by `sliceType` (all agents for a given slice fire simultaneously in one message):
    - schema/db → [dba](../../agents/dba.md) + [backend-architect](../../agents/backend-architect.md)
    - api/logic → [backend-architect](../../agents/backend-architect.md) + [test-reviewer](../../agents/test-reviewer.md)
-   - ui → [frontend-reviewer](../../agents/frontend-reviewer.md) + frontend lens of [backend-architect](../../agents/backend-architect.md)
+   - ui → [frontend-reviewer](../../agents/frontend-reviewer.md) (reviews against the approved `DESIGN.md` + [ui-design standard](../../shared/skills/e2e-engineering/standards/ui-design.md) — deviation = Important, anti-slop defect = normal severity) + frontend lens of [backend-architect](../../agents/backend-architect.md)
    - every slice → [test-reviewer](../../agents/test-reviewer.md) (AC coverage)
 
    **Reviewer context injection.** Before dispatching, read method signatures (not bodies) of existing test files touched by this slice. Inject as `existingTests[]` in each reviewer prompt. Reviewers must cite a specific line/test proving a coverage gap before assigning Critical — orchestrator rejects un-evidenced Criticals without bounce.
