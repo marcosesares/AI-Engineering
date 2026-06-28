@@ -34,7 +34,7 @@ Read `.e2e-engineering/queue.json` (offset/limit — only what you need).
 
 **Master-clean check.** `git status` on master — any uncommitted changes → `<e2e-stall reason="master-dirty — commit or clean before flight" />` + EXIT.
 
-**Task lock + branch.** Commit `queue.json` status `ready-for-flight→in-progress` to master. Then `git checkout -b task/<id>` from master. Orchestrator works on `task/<id>` throughout. Sub-agents work in isolated branches. Master not touched again until Step 5.1.
+**Task lock + branch.** Commit `queue.json` status `ready-for-flight→in-progress` to master. Create/update `task/<id>` from master, then return to master. Orchestrator state artifacts live on master. Task branch receives code merges + verification only. Sub-agents work in isolated branches. Before any checkout: commit orchestrator artifacts; no stash.
 
 Task root: `.e2e-engineering/tasks/<id>/`.
 
@@ -81,9 +81,9 @@ Repeat until DAG drained (every slice `done` or `blocked`):
 
    Reviewer roles above are prompt roles, not Codex `agent_type` names. Always spawn Codex expert reviewers with `agent_type: worker`; never spawn `backend-architect`, `dba`, `frontend-reviewer`, or `test-reviewer` as tool roles, even if the runtime advertises them. Reviewers receive review-bundle path/content + canonical expert spec only — NOT worktree path (Codex worktree isolation is internal; path coupling fails silently). Each returns **reviewer result** (`$sharedSkillsRoot/schemas/review-result.json.md`): `{ reviewerId, sliceId, findings[] }`.
 
-   **Reviewer context injection.** Before dispatching, read method signatures (not bodies) of existing test files touched by this slice. Include as `existingTests[]` in the review bundle. Reviewers must cite a specific line/test proving a coverage gap before assigning Critical — orchestrator rejects un-evidenced Criticals without bounce.
+   **Finding evidence gate.** Critical/Important findings MUST cite evidence: `file:line`, test name, log path, or explicit searched-absence scope. No cite → orchestrator records `Unsubstantiated`, no bounce. Coverage doubt without proof → `NeedsVerification`, not Critical.
 
-   Reviewers read-only, independent. If a reviewer spawn fails due thread/slot limits, close completed/errored agents, retry, then run bounded batches if still constrained. Give each reviewer the same review bundle + `existingTests[]` and no implementation context; never skip `test-reviewer`. Findings: **Critical / Important / Minor**.
+   Reviewers read-only, independent. If a reviewer spawn fails due thread/slot limits, close completed/errored agents, retry, then run bounded batches if still constrained. Give each reviewer the same review bundle and no implementation context; never skip `test-reviewer`. Findings: **Critical / Important / Minor / NeedsVerification / Unsubstantiated**. `NeedsVerification` → targeted read-tool reviewer only for disputed source/test scope; cite-backed Critical/Important from that verifier may bounce.
 
    **Three-tier bounce.** On Critical/Important finding requiring a fix:
    - **Mechanical** (rename/reformat/comment only — zero logic lines changed, verifiable by diff) → impl worker fixes; orchestrator logs `"skip re-review: mechanical, diff confirms no logic change"`. No re-review dispatched.
@@ -93,7 +93,7 @@ Repeat until DAG drained (every slice `done` or `blocked`):
    Reviewers never fix or merge. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, keep draining. Minor → note, don't block.
 
 4. **lint + compile** — orchestrator commands (not agents). Run project lint + build/typecheck; reconcile failures before merge.
-5. **Merge** slice branch → Task branch via `git merge slice/<story-id>`. Orchestrator owns this merge. Resolve conflicts (never discard work). Branch missing or not ahead of Task branch → bounce/stall, do not ask worker to paste full patches.
+5. **Merge** slice branch → Task branch. No stash. Before any checkout, commit orchestrator-owned artifacts on master; uncommitted state before checkout = hard STOP. Sequence: commit master artifacts → `git checkout task/<id>` → `git merge slice/<story-id>` → resolve conflicts (never discard work) → lint/build if needed → `git checkout master`. Branch missing or not ahead of Task branch → bounce/stall, do not ask worker to paste full patches.
 6. **Record + persist sidecars** (sole writer):
    - Write `tasks/<id>/manifests/<story-id>/slice-result.json` (`$sharedSkillsRoot/schemas/slice-result.json.md`) from sub-agent's returned manifest.
    - Write `tasks/<id>/manifests/<story-id>/review-result.json` (`$sharedSkillsRoot/schemas/review-result.json.md`) from combined reviewer results (parallel or bounded-batch reviewers for this slice).
@@ -113,7 +113,7 @@ Run `$sharedSkillsRoot/impl/e2e-loop.md`: author cross-slice **UI regression tes
 
 - **5.0 — HARD GATE 5 (verification-before-completion).** Run `$sharedSkillsRoot/impl/verification.md`: (a) full automated suite (unit + API/integration) green from clean state; (b) AC-checklist against code — every `acceptanceCriteria[]` maps to a code path AND a covering automated test (unit/API) OR a Manual test-case (UI). Write `manifests/_task/verification-result.json` (`$sharedSkillsRoot/schemas/verification-result.json.md`). **NO live-UI exercise** (no app launch — Fork Y). Red suite or unmapped AC → record failures, proceed to Step 5.1 (do NOT mark `blocked` — see ADR 0025).
 - Then review assembled Task against acceptanceCriteria + `$sharedSkillsRoot/constitution.md`.
-- **5.1** → on `task/<id>` branch: finalize `progress.txt`. Then `git checkout master`, commit `queue.json` status `in-progress→pending-qa`, `git checkout task/<id>`. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018). Applies whether gate 5 was fully green or had failures (failures ride to human-QA in qa-signoff.md).
+- **5.1** → run verification on `task/<id>`, then return `master`; write/finalize `progress.txt`, `qa-signoff.md`, verification sidecar, and `queue.json` status `in-progress→pending-qa`; commit. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018). Applies whether gate 5 was fully green or had failures (failures ride to human-QA in qa-signoff.md).
 - **5.2 self-review hard fail** (constitution violation, not test failure) → scoped `git restore` UNCOMMITTED leftovers ONLY (never wipe already-merged slices) + mark Task `blocked` in `queue.json`. Committed slices stay.
 
 ---
@@ -160,7 +160,7 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - Staging/committing env/config files in worktree branch (untracked only).
 - Touching another Task's `tasks/<id>/` state.
 - git stash during flight — no stash ever; master artifacts committed at clean boundaries only.
-- Touching master after task branch created, except the two targeted `queue.json` commits (Step 1 lock + Step 5.1 pending-qa).
+- Leaving master with uncommitted queue/prd/progress/sidecar artifacts before checkout.
 - Cold-reading source files when `codebase-map.md` missing (stall instead — Step 2).
 - Dispatching full re-review wave for mechanical fixes (skip re-review per [[Three-tier bounce]]).
 - Loading full raw diffs/logs into orchestrator context for review; write `review-bundle.json` and let reviewers pull scoped evidence.
