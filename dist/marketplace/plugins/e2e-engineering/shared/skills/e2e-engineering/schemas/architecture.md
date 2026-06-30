@@ -42,9 +42,10 @@ Durable, project-level reference: THIS project's structure + project-specific co
 
 ### §4.1 Test architecture (Fork Y, ADR 0024 — REQUIRED before any API-bearing task launches)
 Seeded in pre-impl (human phase); flight READS, never writes. Baseline standard = [standards/api-testing.md](standards/api-testing.md); fill THIS project's actuals (they override the baseline):
-- **Unit runner:** <Vitest|Jest|...> + test dir/glob.
-- **API/integration:** Playwright `request` — config path (`playwright.config.*`), test dir, `baseURL`.
-- **Stack-up (M1):** how the running stack comes up for tests (docker-compose service(s), required env files, ports).
+- **Compile command:** <fast compile-only check, e.g. `./gradlew :backend:compileJava` | `mvn -q compile` | `npx tsc --noEmit`>. OPTIONAL — overrides flight's compile auto-detection. Compile ONLY; does NOT package. Empty → flight auto-detects from repo files (ADR 0032).
+- **Unit runner:** <Vitest|Jest|JUnit|...> + test dir/glob + run cmd.
+- **API/integration (independent project):** the client's standalone Playwright `request` project (own `playwright.config.*` + `package.json`, may be a sibling dir). Give config path, project name, testDir, `baseURL`, and the **API-only run cmd** (e.g. `cd playwright && npm run test:api`, or `npx playwright test --project api`). Flight runs THIS cmd; NEVER bare `playwright test` (would also run any browser/UI project — UI is Manual). Absent → flight discovers the no-browser/`request` project and runs it with `--project <name>`.
+- **Stack-up (M1):** the explicit sequence gate 5 runs to bring the stack up clean — and it OWNS the **package/deploy build** (the build that produces the docker artifact, e.g. `quarkusBuild` → `build/quarkus-app/**`, NOT the compile-only command). e.g. `docker compose down -v` → `<package build>` → `docker compose up --force-recreate --build -d`. List service(s), required env files, ports. Empty + a Dockerfile that copies a pre-built artifact → flight CANNOT safely rebuild (it will WARN and skip the host build); seed this line for such projects (ADR 0032).
 - **Auth:** how an API test authenticates (token/storageState/setup project).
 - **Data isolation:** per-test seed/clean strategy; if none possible → API-test slices serialize.
 - **Existing conventions:** if the project already has API tests, point to them — follow, don't replace.
