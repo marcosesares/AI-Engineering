@@ -49,6 +49,12 @@ Read (offset/limit, only needed sections): `tasks/<id>/prd.json` (slice DAG) + `
 
 **Docker env cache (brownfield/docker projects).** Read `docker-compose.yml` (+ `docker-compose.override.yml` if present) ONCE. Extract required env/config files: `env_file` entries + volume-mounted config paths. Cache this list — used by every `EnterWorktree` call in Step 3. Do NOT re-read per slice.
 
+**Compile detection (cache `compileCmd` once).** Resolve the COMPILE-ONLY check command, §4.1-wins-else-detect (ADR 0032):
+1. `ARCHITECTURE.md §4.1 Compile command` present → use it verbatim.
+2. else detect from repo root: `pom.xml` → `mvn -q compile`; `build.gradle`/`build.gradle.kts` → gradle wrapper + `compileJava`, shell-aware (`./gradlew compileJava` POSIX / `.\gradlew.bat compileJava` PowerShell/win32); `package.json` → `npm run build` (no `build` script → `npx tsc --noEmit`).
+3. none of the above → NO compile command; skip the compile check + WARN in `progress.txt`. Do NOT fall back to `mvn` (the original bug, #35).
+`compileCmd` is COMPILE-ONLY — it never feeds the gate-5 stack rebuild (that build comes from §4.1 Stack-up). Cache `compileCmd` once for the spawn (alongside the docker-env cache); do NOT re-detect per slice.
+
 **Codebase-map (brownfield only).** Missing `tasks/<id>/codebase-map.md` → `<e2e-stall reason="codebase-map-missing — pre-impl incomplete, run /e2e-engineering" />` + EXIT. Do NOT cold-read source files to compensate. If present: read §1–§3 ONCE (§Index for offset/limit). Hold in context. Do NOT re-read in Steps 3 or 4.
 
 ---
@@ -60,7 +66,7 @@ Sole writer: only orchestrator writes `prd.json` + `progress.txt` + evidence sid
 Repeat until DAG drained (every slice `done` or `blocked`):
 
 1. **Compute ready set** — slices whose `depends_on` are all `done` AND own `status: todo`.
-2. **Fan-out impl wave** — dispatch each ready slice to its OWN git worktree + sub-agent (`EnterWorktree` + `Agent`). Run [tdd](../../shared/skills/e2e-engineering/impl/tdd.md). Parallel ONLY across disjoint file sets (same-file slices serialized by `depends_on` in to-issues). Inject: [constitution](../../shared/skills/e2e-engineering/constitution.md) + [api-testing standard](../../shared/skills/e2e-engineering/standards/api-testing.md) + slice (acceptanceCriteria, sliceType, `integration` decision) + testCases + (brownfield) SCOPED slice of `ARCHITECTURE.md` (use §Index for offset/limit on the relevant sections). **`ui` slices ALSO get the [ui-design standard](../../shared/skills/e2e-engineering/standards/ui-design.md) + the SCOPED slice of `DESIGN.md`** (register + relevant tokens/components, §Index offset/limit; READ-only in flight — ADR 0030).
+2. **Fan-out impl wave** — dispatch each ready slice to its OWN git worktree + sub-agent (`EnterWorktree` + `Agent`). Run [tdd](../../shared/skills/e2e-engineering/impl/tdd.md). Parallel ONLY across disjoint file sets (same-file slices serialized by `depends_on` in to-issues). Inject: [constitution](../../shared/skills/e2e-engineering/constitution.md) + [api-testing standard](../../shared/skills/e2e-engineering/standards/api-testing.md) + slice (acceptanceCriteria, sliceType, `integration` decision) + testCases + cached `compileCmd` (Step 2 — worker compiles with this, never assumes Maven) + (brownfield) SCOPED slice of `ARCHITECTURE.md` (use §Index for offset/limit on the relevant sections). **`ui` slices ALSO get the [ui-design standard](../../shared/skills/e2e-engineering/standards/ui-design.md) + the SCOPED slice of `DESIGN.md`** (register + relevant tokens/components, §Index offset/limit; READ-only in flight — ADR 0030).
 
    **Worktree env/config bootstrap** (immediately after `EnterWorktree`, before sub-agent dispatch). Copy cached docker env file list (from Step 2) into the worktree. Use `cp`/`Copy-Item`. Do NOT stage/commit these files — untracked, cleaned by `ExitWorktree`. Required file missing from main tree → sub-agent surfaces it as a blocker in slice result manifest, does not silently skip.
 
@@ -87,7 +93,7 @@ Repeat until DAG drained (every slice `done` or `blocked`):
 
    Reviewers never fix or merge. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
 
-4. **lint + compile** — orchestrator commands (not agents). Run project lint + build/typecheck; reconcile failures before merge.
+4. **lint + compile** — orchestrator commands (not agents). Run project lint + the cached `compileCmd` (Step 2 — compile-only check, not a hardcoded build, not the package build); reconcile failures before merge.
 5. **Merge** slice branch → Task branch. Orchestrator owns this merge (resolve conflicts, never discard work). Remove worktree immediately (`ExitWorktree`) — life ends at merge.
 6. **Record + persist sidecars** (sole writer):
    - Write `tasks/<id>/manifests/<story-id>/slice-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/slice-result.json.md)) from sub-agent's returned manifest.
@@ -106,7 +112,7 @@ Run [e2e-loop](../../shared/skills/e2e-engineering/impl/e2e-loop.md): author cro
 
 ## Step 5 — verification (gate 5) + self-review (whole task)
 
-- **5.0 — HARD GATE 5 (verification-before-completion).** Run [verification](../../shared/skills/e2e-engineering/impl/verification.md): (a) full automated suite (unit + API/integration) green from clean state; (b) AC-checklist against code — every `acceptanceCriteria[]` maps to a code path AND a covering automated test (unit/API) OR a Manual test-case (UI). Write `manifests/_task/verification-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/verification-result.json.md)). **NO live-UI exercise** (no app launch — Fork Y). Red suite or unmapped AC → record failures, proceed to Step 5.1 (do NOT mark `blocked` — see ADR 0025).
+- **5.0 — HARD GATE 5 (verification-before-completion).** Run [verification](../../shared/skills/e2e-engineering/impl/verification.md): bring the live docker-compose stack up ONCE per `ARCHITECTURE.md §4.1 Stack-up` (owns the package build, e.g. `down -v → quarkusBuild → up --force-recreate --build -d`; unseeded + artifact-copying Dockerfile → WARN + skip host build; no compose → skip), then (a) full automated suite (unit + the client's independent Playwright **API project ONLY**, via the §4.1 `API/integration` API-only cmd / `--project <name>` — NEVER bare `playwright test`) green; (b) AC-checklist against code — every `acceptanceCriteria[]` maps to a code path AND a covering automated test (unit/API) OR a Manual test-case (UI). Red → durable bounded task-level 3-strike loop (`gate5Strikes` in the sidecar; resume-safe; separate from per-slice Gate-3). Tear the stack down (`down -v`) after. Write `manifests/_task/verification-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/verification-result.json.md)) incl. `gate5Strikes`/`gate5FailureIds[]`. **NO live-UI exercise** (no app launch, browser project never run — Fork Y). Still red after the loop or unmapped AC → record failures, proceed to Step 5.1 (do NOT mark `blocked` — see ADR 0025).
 - Then review assembled Task against acceptanceCriteria + [constitution](../../shared/skills/e2e-engineering/constitution.md).
 - **5.1** → on `task/<id>` branch: finalize `progress.txt`. Then `git checkout master`, commit `queue.json` status `in-progress→pending-qa`, `git checkout task/<id>`. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018). Applies whether gate 5 was fully green or had failures (failures ride to human-QA in qa-signoff.md).
 - **5.2 self-review hard fail** (constitution violation, not test failure) → scoped `git restore` UNCOMMITTED leftovers ONLY (never wipe already-merged slices) + mark Task `blocked` in `queue.json`. Committed slices stay.
@@ -132,10 +138,14 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - **Skill files** (SKILL.md, schemas/*.md, sub-skill .md files): maintained in caveman-ultra. Apply when creating or updating any skill doc.
 - offset/limit on all reads — only sections needed; never re-read whole file.
 - `progress.txt` = single append-only record; status-headed entries; tail for current state.
-- docker config + codebase-map: read ONCE in Step 2, never re-read in Steps 3/4.
+- docker config + codebase-map + `compileCmd`: resolved/read ONCE in Step 2, never re-detect/re-read in Steps 3/4.
 
 ## Red flags (stop)
 - Slice-impl inline instead of sub-agent dispatch (blowup cause — Step 0 forces fan-out; inline = STOP).
+- Assuming `mvn` / a hardcoded build instead of the §4.1-or-detected `compileCmd` (bug #35 cause — Step 2 detects, §4.1 wins; none → skip + WARN, never `mvn`).
+- Feeding `compileCmd` into the gate-5 stack rebuild — the package build comes ONLY from §4.1 Stack-up.
+- Running bare `playwright test` at gate 5 (runs the browser/UI project) — API project ONLY.
+- Leaving the gate-5 docker stack up (orphan), or resetting `gate5Strikes` on resume.
 - Fallback to inline when `Agent`/`EnterWorktree` won't load (stall + exit).
 - Re-introducing loop / checkpoint / handoff / 65% monitoring (ADR 0022 — gone).
 - Running [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) headless (write qa-signoff.md instead).
