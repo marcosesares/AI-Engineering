@@ -14,7 +14,7 @@ Never ask what code/docs already answer — read instead.
 ## What to do
 Interview user relentlessly until shared, concrete understanding. Walk each branch of design tree, resolve dependencies one at a time. Give recommended answer per question.
 
-- Ask ONE question at a time. Wait for answer before next.
+- Ask ONE question at a time. Wait for answer before next. End each question with `WAITING: answer to continue grilling (Q<n>)` so the human knows you are paused, not working — never go silent mid-interview (ADR 0031).
 - If question answerable by reading code/docs → read instead of asking.
 - Reconcile language AS YOU GO: user's term conflicts with glossary or code's term → surface immediately, pin ONE canonical term. Update CONTEXT.md inline as terms resolve (glossary only — no implementation detail).
 - Stress-test with concrete scenarios. Probe edge cases. Force precision on boundaries.

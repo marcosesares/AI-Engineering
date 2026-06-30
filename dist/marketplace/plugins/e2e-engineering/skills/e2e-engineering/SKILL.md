@@ -17,16 +17,18 @@ Durable project docs at repo ROOT: `CONTEXT.md` (glossary), [constitution](../..
 
 **Sole-writer rule:** ONLY orchestrator writes `prd.json` + `progress.txt` + evidence sidecars (`manifests/<story-id>/`). Sub-agents return slice result manifests; never touch shared state.
 
+**Waiting signal — never go silent at a chokepoint (ADR 0031).** Every time the flow STOPs for human input, the LAST line you emit MUST be a single plain-text marker: `WAITING: <action needed> — <task/context>`. Without it the human cannot tell "agent working" from "agent waiting" and wall-time dies (root cause: a multi-hour silent Gate-1 stall). One marker per STOP, always the final line. Concrete wording is given at each STOP below (route fork, bucket selection, Gate 1, batch/launch, run-selection checkbox) and per question in [grill-with-docs](../../shared/skills/e2e-engineering/pre-impl/grill-with-docs.md).
+
 ---
 
 ## Step 0 — route mode
 
 - User invoked `/e2e-engineering adopt` → run [adopt](../../shared/skills/e2e-engineering/adopt.md). One-time onboarding, not per-task flow. Stop here.
 - User invoked `/e2e-engineering qa` (explicit arg) → skip the menu; run the **QA sign-off session** ([human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) multi-Task mode) over **every** `status:pending-qa` Task (same session as the Pending-QA bucket below, but no selection step). Stop here when done.
-- **Bare `/e2e-engineering` with a populated queue** — `queue.json` has ≥1 Task in `todo` OR `pending-qa` (and Step 1 found no single `in-progress` Task to resume) → **Front-door menu (ADR 0028).** Do NOT auto-route and do NOT fall through to a fresh spec. Ask the two-way fork, STOP for answer:
+- **Bare `/e2e-engineering` with a populated queue** — `queue.json` has ≥1 Task in `todo` OR `pending-qa` (and Step 1 found no single `in-progress` Task to resume) → **Front-door menu (ADR 0028).** Do NOT auto-route and do NOT fall through to a fresh spec. Ask the two-way fork, STOP for answer (end with `WAITING: pick (1) new task or (2) existing queue`):
   > **(1)** Specify a new task / idea, or **(2)** work on the existing queue?
   - **(1) New** → per-feature flow below (spec → gate 1 → queue → launch flight).
-  - **(2) Existing queue** → present the queue as up to **three labeled buckets** (show only non-empty ones), each its own selectable checklist with priority + dependsOn; **STOP and wait** for the human's selection. Selection routes by bucket:
+  - **(2) Existing queue** → present the queue as up to **three labeled buckets** (show only non-empty ones), each its own selectable checklist with priority + dependsOn; **STOP and wait** for the human's selection (end with `WAITING: select Task(s) to work — <bucket>`). Selection routes by bucket:
     - **Ready for implementation** — `status:ready-for-flight` (PRD approved @ gate-1; ADR 0029). Select → **Launch sequence** (`→ On consent` step 3, **resume mode**) → `/e2e-flight`.
     - **Pending spec** — `status:needs-spec` (queued idea, no PRD yet). Select → per-feature flow for that Task id (establish/confirm Task root, spec → gate 1 → flips to `ready-for-flight`).
     - **Pending QA sign-off** — `status:pending-qa` Task. Select → **QA sign-off session** ([human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) multi-Task mode): walk every selected Task's [qa-signoff.md](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), sign off (→ `done`), route findings through [triage](../../shared/skills/e2e-engineering/impl/triage.md) into new queue Tasks, and forward each Task's [flow-retro](../../shared/skills/e2e-engineering/schemas/flow-retro.md) §Skill-improvement candidates upstream to the e2e-engineering repo (three distinct lanes — ADR 0027).
@@ -62,7 +64,7 @@ Sequence (bracketed = conditional): **[map-codebase? (brownfield)] → grill-wit
    - **Plan with expert agents → architecture-aware PRD.** Before finalizing, consult expert advisor agents against `ARCHITECTURE.md` + `DESIGN.md` + `constitution`: [backend-architect](../../agents/backend-architect.md), [dba](../../agents/dba.md), and (UI lens, on the spec pre-build) [product-designer](../../agents/product-designer.md) — it bakes design requirements into the acceptance criteria. backend-architect/dba later review built slices in [/e2e-flight](../e2e-flight/SKILL.md); there the [frontend-reviewer](../../agents/frontend-reviewer.md) reviews built ui slices (advisor here, reviewer there).
    - **Seed test architecture → ARCHITECTURE.md §4 (Fork Y, ADR 0024).** Recognize (brownfield: from code) or define (greenfield) how the project runs tests: unit runner (Vitest/Jest) + layout; API/integration via Playwright `request` (config path, test dir, auth/setup). UI = Manual (no automation). Write into ARCHITECTURE.md (human phase). Flight READS this; never writes it.
 
-**HARD GATE 1 — PRD approved → implementation.** Present PRD; require explicit human consent before any code. Do not proceed on silence. STOP + WAIT. Never infer approval from "looks good" on earlier draft.
+**HARD GATE 1 — PRD approved → implementation.** Present PRD; require explicit human consent before any code. Do not proceed on silence. STOP + WAIT — end with `WAITING: approve or reject PRD for <id>`. Never infer approval from "looks good" on earlier draft.
 
 **→ On consent: queue Task, then batch or launch.** Steps IN ORDER — each is human chokepoint, none auto-resolved:
 
@@ -72,9 +74,9 @@ Sequence (bracketed = conditional): **[map-codebase? (brownfield)] → grill-wit
    - **New forward-flow feature** (not yet in queue): append entry `{ id, title, priority, dependsOn, status:ready-for-flight, selected:false, parentTask:null }`. Ask human for `priority` + cross-Task `dependsOn` (camelCase).
    **Born `selected:false`** either way — selection only at checkbox in step 3.
 3. **Batch or launch?** Reachable two ways:
-   - **From new-spec consent** (this just finished steps 1–2): Ask *"Spec another feature, or launch flight now?"* — STOP for answer.
+   - **From new-spec consent** (this just finished steps 1–2): Ask *"Spec another feature, or launch flight now?"* — STOP for answer (end with `WAITING: spec another feature, or launch flight?`).
      - **Another** → loop back to Pre-implementation for next feature — establish NEW Task root first. Queue grows.
-     - **Launch** → **Run-selection checkbox (HARD interactive STOP).** Present every `status:ready-for-flight` Task with priority + dependsOn as unchecked checklist; ASK human which to drain THIS flight. **Do NOT pre-check all, do NOT assume "all", do NOT launch until human returns checked subset.** Only auto-addition allowed: unmet `dependsOn` of checked Task (warn: "billing-export needs auth-login — adding it"). Set `selected:true` ONLY on human-chosen set (+ pulled-in deps). Human checks nothing → do not launch.
+     - **Launch** → **Run-selection checkbox (HARD interactive STOP).** Present every `status:ready-for-flight` Task with priority + dependsOn as unchecked checklist; ASK human which to drain THIS flight. **Do NOT pre-check all, do NOT assume "all", do NOT launch until human returns checked subset.** Only auto-addition allowed: unmet `dependsOn` of checked Task (warn: "billing-export needs auth-login — adding it"). Set `selected:true` ONLY on human-chosen set (+ pulled-in deps). Human checks nothing → do not launch. End with `WAITING: check which ready Task(s) to drain this flight`.
    - **Resume mode** (Step 0, human already named ready Task ID(s) in their reply — ADR 0028): the named IDs ARE the human-chosen set; no checklist re-presentation. Verify each is `status:ready-for-flight` (ADR 0029). Auto-add only unmet `dependsOn` (warn). Set `selected:true` on that set, then proceed to step 4. Reply ambiguous / no valid ready ID → fall back to the unchecked checklist STOP above.
 4. **Invoke [/e2e-flight](../e2e-flight/SKILL.md)** for first selected Task. **Flight implements ONE Task per invocation, then exits (ADR 0022).** Tell human: "Flight implements one Task per `/e2e-flight` run. I've kicked off `<id>`; re-run `/e2e-flight` for each remaining selected Task, then `/e2e-engineering` to QA sign-off. Watch progress tailing `tasks/<id>/progress.txt`."
 
