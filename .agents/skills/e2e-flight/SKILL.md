@@ -50,6 +50,12 @@ Read (offset/limit, only needed sections): `tasks/<id>/prd.json` (slice DAG) + `
 
 **Docker env cache (brownfield/docker projects).** Read `docker-compose.yml` (+ `docker-compose.override.yml` if present) ONCE. Extract required env/config files: `env_file` entries + volume-mounted config paths. Cache this list — included in every sub-agent spawn manifest in Step 3. Do NOT re-read per slice.
 
+**Compile detection (cache `compileCmd` once).** Resolve the COMPILE-ONLY check command, §4.1-wins-else-detect (ADR 0032):
+1. `ARCHITECTURE.md §4.1 Compile command` present → use it verbatim.
+2. else detect from repo root: `pom.xml` → `mvn -q compile`; `build.gradle`/`build.gradle.kts` → gradle wrapper + `compileJava`, shell-aware (`./gradlew compileJava` POSIX / `.\gradlew.bat compileJava` PowerShell/win32); `package.json` → `npm run build` (no `build` script → `npx tsc --noEmit`).
+3. none of the above → NO compile command; skip the compile check + WARN in `progress.txt`. Do NOT fall back to `mvn` (the original bug, #35).
+`compileCmd` is COMPILE-ONLY — it never feeds the gate-5 stack rebuild (that build comes from §4.1 Stack-up). Cache `compileCmd` once for the spawn (alongside the docker-env cache); pass it in every sub-agent spawn manifest in Step 3. Do NOT re-detect per slice.
+
 **Codebase-map (brownfield only).** Missing `tasks/<id>/codebase-map.md` → `<e2e-stall reason="codebase-map-missing — pre-impl incomplete, run /e2e-engineering" />` + EXIT. Do NOT cold-read source files to compensate. If present: read §1–§3 ONCE (§Index for offset/limit). Hold in context. Do NOT re-read in Steps 3 or 4.
 
 ---
@@ -61,7 +67,7 @@ Sole writer: only orchestrator writes `prd.json` + `progress.txt` + evidence sid
 Repeat until DAG drained (every slice `done` or `blocked`):
 
 1. **Compute ready set** — slices whose `depends_on` are all `done` AND own `status: todo`.
-2. **Impl dispatch wave** — write ready-set manifest JSON (slice ids + injection payload), then dispatch via `spawn_agents_on_csv` (or `spawn_agent`/`wait_agent`). Record dispatch table in memory: `agentId -> taskId, sliceId, expectedBranch, attempt`. Codex branch-visible integration is required: each worker creates and commits to `slice/<story-id>` and returns that branch name in its slice result manifest. Worker NEVER merges into the Task branch. Parallel Codex mode dispatches disjoint ready-set slices concurrently. Codex serial branch mode dispatches exactly one ready slice at a time: orchestrator creates/switches to `slice/<story-id>` from the Task branch before spawning, worker commits on the current branch without switching, orchestrator waits/validates, switches back to Task branch, then merges. Each sub-agent injection: `$sharedSkillsRoot/constitution.md` + `$sharedSkillsRoot/standards/api-testing.md` + slice (acceptanceCriteria, sliceType, `integration` decision) + testCases + (brownfield) SCOPED slice of `ARCHITECTURE.md` (use §Index for offset/limit on relevant sections). `ui` slices ALSO get `$sharedSkillsRoot/standards/ui-design.md` + the SCOPED slice of `DESIGN.md` (register + relevant tokens/components, §Index offset/limit; READ-only in flight — ADR 0030).
+2. **Impl dispatch wave** — write ready-set manifest JSON (slice ids + injection payload), then dispatch via `spawn_agents_on_csv` (or `spawn_agent`/`wait_agent`). Record dispatch table in memory: `agentId -> taskId, sliceId, expectedBranch, attempt`. Codex branch-visible integration is required: each worker creates and commits to `slice/<story-id>` and returns that branch name in its slice result manifest. Worker NEVER merges into the Task branch. Parallel Codex mode dispatches disjoint ready-set slices concurrently. Codex serial branch mode dispatches exactly one ready slice at a time: orchestrator creates/switches to `slice/<story-id>` from the Task branch before spawning, worker commits on the current branch without switching, orchestrator waits/validates, switches back to Task branch, then merges. Each sub-agent injection: `$sharedSkillsRoot/constitution.md` + `$sharedSkillsRoot/standards/api-testing.md` + slice (acceptanceCriteria, sliceType, `integration` decision) + testCases + cached `compileCmd` (Step 2 — worker compiles with this, never assumes Maven) + (brownfield) SCOPED slice of `ARCHITECTURE.md` (use §Index for offset/limit on relevant sections). `ui` slices ALSO get `$sharedSkillsRoot/standards/ui-design.md` + the SCOPED slice of `DESIGN.md` (register + relevant tokens/components, §Index offset/limit; READ-only in flight — ADR 0030).
 
    **Worktree env/config bootstrap** (included in spawn manifest). Pass cached docker env file list (from Step 2) in each sub-agent's spawn payload. Sub-agent copies into its worktree on start. Do NOT stage/commit these files — untracked only. Required file missing from main tree → sub-agent surfaces it as blocker in slice result manifest; does not silently skip.
 
@@ -92,7 +98,7 @@ Repeat until DAG drained (every slice `done` or `blocked`):
 
    Reviewers never fix or merge. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, keep draining. Minor → note, don't block.
 
-4. **lint + compile** — orchestrator commands (not agents). Run project lint + build/typecheck; reconcile failures before merge.
+4. **lint + compile** — orchestrator commands (not agents). Run project lint + the cached `compileCmd` (Step 2 — compile-only check, not a hardcoded build, not the package build); reconcile failures before merge.
 5. **Merge** slice branch → Task branch. No stash. Before any checkout, commit orchestrator-owned artifacts on master; uncommitted state before checkout = hard STOP. Sequence: commit master artifacts → `git checkout task/<id>` → `git merge slice/<story-id>` → resolve conflicts (never discard work) → lint/build if needed → `git checkout master`. Branch missing or not ahead of Task branch → bounce/stall, do not ask worker to paste full patches.
 6. **Record + persist sidecars** (sole writer):
    - Write `tasks/<id>/manifests/<story-id>/slice-result.json` (`$sharedSkillsRoot/schemas/slice-result.json.md`) from sub-agent's returned manifest.
@@ -111,7 +117,7 @@ Run `$sharedSkillsRoot/impl/e2e-loop.md`: author cross-slice **UI regression tes
 
 ## Step 5 — verification (gate 5) + self-review (whole task)
 
-- **5.0 — HARD GATE 5 (verification-before-completion).** Run `$sharedSkillsRoot/impl/verification.md`: (a) full automated suite (unit + API/integration) green from clean state; (b) AC-checklist against code — every `acceptanceCriteria[]` maps to a code path AND a covering automated test (unit/API) OR a Manual test-case (UI). Write `manifests/_task/verification-result.json` (`$sharedSkillsRoot/schemas/verification-result.json.md`). **NO live-UI exercise** (no app launch — Fork Y). Red suite or unmapped AC → record failures, proceed to Step 5.1 (do NOT mark `blocked` — see ADR 0025).
+- **5.0 — HARD GATE 5 (verification-before-completion).** Run `$sharedSkillsRoot/impl/verification.md`: bring the live docker-compose stack up ONCE per `ARCHITECTURE.md §4.1 Stack-up` (owns the package build, e.g. `down -v → quarkusBuild → up --force-recreate --build -d`; unseeded + artifact-copying Dockerfile → WARN + skip host build; no compose → skip), then (a) full automated suite (unit + the client's independent Playwright **API project ONLY**, via the §4.1 `API/integration` API-only cmd / `--project <name>` — NEVER bare `playwright test`) green; (b) AC-checklist against code — every `acceptanceCriteria[]` maps to a code path AND a covering automated test (unit/API) OR a Manual test-case (UI). Red → durable bounded task-level 3-strike loop (`gate5Strikes` in the sidecar; resume-safe; separate from per-slice Gate-3). Tear the stack down (`down -v`) after. Write `manifests/_task/verification-result.json` (`$sharedSkillsRoot/schemas/verification-result.json.md`) incl. `gate5Strikes`/`gate5FailureIds[]`. **NO live-UI exercise** (no app launch, browser project never run — Fork Y). Still red after the loop or unmapped AC → record failures, proceed to Step 5.1 (do NOT mark `blocked` — see ADR 0025).
 - Then review assembled Task against acceptanceCriteria + `$sharedSkillsRoot/constitution.md`.
 - **5.1** → run verification on `task/<id>`, then return `master`; write/finalize `progress.txt`, `qa-signoff.md`, verification sidecar, and `queue.json` status `in-progress→pending-qa`; commit. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018). Applies whether gate 5 was fully green or had failures (failures ride to human-QA in qa-signoff.md).
 - **5.2 self-review hard fail** (constitution violation, not test failure) → scoped `git restore` UNCOMMITTED leftovers ONLY (never wipe already-merged slices) + mark Task `blocked` in `queue.json`. Committed slices stay.
@@ -137,10 +143,14 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - **Skill files** (SKILL.md, schemas/*.md, sub-skill .md files): maintained in caveman-ultra. Apply when creating or updating any skill doc.
 - offset/limit on all reads — only sections needed; never re-read whole file.
 - `progress.txt` = single append-only record; status-headed entries; tail for current state.
-- docker config + codebase-map: read ONCE in Step 2, never re-read in Steps 3/4.
+- docker config + codebase-map + `compileCmd`: resolved/read ONCE in Step 2, never re-detect/re-read in Steps 3/4.
 
 ## Red flags (stop)
 - Slice-impl inline instead of sub-agent dispatch (blowup cause — Step 0 forces fan-out; inline = STOP).
+- Assuming `mvn` / a hardcoded build instead of the §4.1-or-detected `compileCmd` (bug #35 cause — Step 2 detects, §4.1 wins; none → skip + WARN, never `mvn`).
+- Feeding `compileCmd` into the gate-5 stack rebuild — the package build comes ONLY from §4.1 Stack-up.
+- Running bare `playwright test` at gate 5 (runs the browser/UI project) — API project ONLY.
+- Leaving the gate-5 docker stack up (orphan), or resetting `gate5Strikes` on resume.
 - Probing `.agents/skills/...` or `.claude/skills/...` for shared files after Step 0; use `$sharedSkillsRoot` only.
 - Continuing when `$sharedSkillsRoot` required files are missing (stall `shared-skills-missing`).
 - Fallback to inline when `spawn_agent`/`spawn_agents_on_csv` unavailable (stall + exit).
