@@ -12,5 +12,6 @@ When the user invokes e2e-flight ("e2e-flight", "/e2e-flight", "flight", "drain 
 - Cursor has no parallel worktree fan-out (`spawn_agents_on_csv` unavailable). Step 0 capability probe routes to **Codex serial branch mode**: one slice at a time, orchestrator switches to `slice/<story-id>` branch, worker commits, orchestrator merges back.
 - If agent spawn (`spawn_agent`) is fully unavailable, Step 0 emits `<e2e-stall reason="fanout-unavailable" />` and exits — never falls back to inline slice work.
 - Slices run SEQUENTIALLY in `depends_on` order. No ready-set parallel dispatch.
+- Cursor's shell does NOT auto-timeout. Step 0's bounded-shell probe and the `impl/command-execution.md` contract are mandatory here (ADR 0033): wrap every compile / package build / stack-up / test command in an OS timeout, run non-interactive, and never foreground a watch/serve command or `docker compose up` without `-d` — an unbounded command hangs the whole spawn and no other brake sees it. Cannot time-box → `<e2e-stall reason="unbounded-shell" />` and exit.
 
 For full-fidelity parallel execution, the Claude Code skill version is available: `npx e2e-engineering init --target claude`.

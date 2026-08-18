@@ -1,6 +1,6 @@
 # tdd — SLICE SUBAGENT
 
-Runs INSIDE fan-out sub-agent, in own git worktree, for ONE story. Receives: [constitution](../constitution.md), [api-testing standard](../standards/api-testing.md), story (acceptanceCriteria, sliceType, depends_on, `integration` decision), feature test-cases, (brownfield) SCOPED slice of ARCHITECTURE.md (this layer's naming + ownership rules touching blast radius + relevant anti-patterns — via §Index offset/limit). **`ui` slices ALSO receive the [ui-design standard](../standards/ui-design.md) + the SCOPED slice of [DESIGN.md](../schemas/design.md)** (register + relevant tokens/components, via §Index offset/limit) — mirror of the api-testing-standard injection for API slices; DESIGN.md is READ-ONLY in flight. Follow `integration` decision and those conventions: EXTEND named owner, match naming pattern — do not invent parallel class/file. Returns evidence-pointer-first manifest only — never writes prd.json/progress.txt/ARCHITECTURE.md/DESIGN.md or authoritative sidecars (orchestrator is sole writer; ARCHITECTURE.md + DESIGN.md are human-phase-only).
+Runs INSIDE fan-out sub-agent, in own git worktree, for ONE story. Receives: [constitution](../constitution.md), [api-testing standard](../standards/api-testing.md), [command-execution](./command-execution.md) + the orchestrator's cached `compileCmd`, story (acceptanceCriteria, sliceType, depends_on, `integration` decision), feature test-cases, (brownfield) SCOPED slice of ARCHITECTURE.md (this layer's naming + ownership rules touching blast radius + relevant anti-patterns — via §Index offset/limit). **`ui` slices ALSO receive the [ui-design standard](../standards/ui-design.md) + the SCOPED slice of [DESIGN.md](../schemas/design.md)** (register + relevant tokens/components, via §Index offset/limit) — mirror of the api-testing-standard injection for API slices; DESIGN.md is READ-ONLY in flight. Follow `integration` decision and those conventions: EXTEND named owner, match naming pattern — do not invent parallel class/file. Returns evidence-pointer-first manifest only — never writes prd.json/progress.txt/ARCHITECTURE.md/DESIGN.md or authoritative sidecars (orchestrator is sole writer; ARCHITECTURE.md + DESIGN.md are human-phase-only).
 
 **After returning green, orchestrator runs expert-review wave** (role agents: frontend-reviewer / backend-architect / dba / test-reviewer, by sliceType — ADR 0022) in this worktree before merge. For `ui` slices, **frontend-reviewer reviews against the approved DESIGN.md + ui-design.md** (deviation = Important: fix or justify; anti-slop defect = normal severity incl. Critical). Critical/Important findings bounce back to YOU for fix, then re-review (cap 3 round-trips, then slice marked `blocked`). Write slice to pass that review: follow `integration` decision, match conventions, give every acceptance criterion real-interface test.
 
@@ -24,6 +24,8 @@ For any API/endpoint this slice implements: write red-green **Playwright `reques
 ### 4. Debug escalation (HARD GATE 3)
 Fix fails 3 times → STOP. Do not blind-retry. Return to orchestrator reporting 3-strike. Orchestrator re-dispatches ONCE with [systematic-debugging](./systematic-debugging.md).
 
+**Every command you run is bounded + non-interactive** per [command-execution](./command-execution.md) (ADR 0033): compile with the injected `compileCmd` (never assume `mvn`), 5 min; test suite 20 min. A timeout counts as a failed fix (gate-3 strike) — log `TIMEOUT <cmd> @<budget>s`, add a `findings[]` `type:blocker` carrying cmd + budget, never re-run unchanged more than once. Never foreground a watch/serve/dev command or attach to logs — it never returns and no brake will catch it.
+
 ## Return manifest (to orchestrator)
 Return compact JSON only: `sliceId`, `status`, one-line `summary`, `testsPassed`, `branch`, `evidencePaths[]`, `findings[]`.
 
@@ -37,6 +39,7 @@ Return compact JSON only: `sliceId`, `status`, one-line `summary`, `testsPassed`
 - Production code before failing test (gate 2 violation).
 - Guessing past gap instead of escalating one question.
 - Blind-retrying 4th time after 3 strikes (gate 3 violation).
+- Running a command unbounded/interactive, or foregrounding a watch/serve/dev script — it never exits and hangs the whole spawn (ADR 0033).
 - Writing prd.json / progress.txt (sole-writer violation).
 - Returning raw test logs, full diffs, or long narrative instead of evidence paths.
 - Automating regression/cross-slice journeys here (not this sub-agent's job).

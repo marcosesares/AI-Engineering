@@ -6,7 +6,7 @@
 **Date:** 2026-05-31
 **Supersedes:** the loop logic currently embedded in `e2e-flight/SKILL.md` + the Task-granularity drain in `scripts/afk.ps1`.
 
-Source ideas: local `prototype/ralph_skill` (stateless agent + file persistence), `frankbria/ralph-claude-code` (timeout, circuit breaker, 5-hour cap handling), `michaelshimeles/ralphy` (worktree-per-agent parallelism, AI conflict merge). Motivation: `flight-token-report.md` — one Task ran 126 tool calls inline across 227 turns → 22.3M cache-read tokens (O(N²) in turn count, ~58% of the flight).
+Source ideas: local `prototype/ralph_skill` (stateless agent + file persistence), `frankbria/ralph-claude-code` (timeout, circuit breaker, 5-hour cap handling), `michaelshimeles/ralphy` (worktree-per-agent parallelism, AI conflict merge). Motivation: the flight token blowup recorded in ADR 0022 — one Task ran 126 tool calls inline across 227 turns → 22.3M cache-read tokens (O(N²) in turn count, ~58% of the flight). The session-local incident report was not retained in-repo; ADR 0022 carries the figures.
 
 ---
 

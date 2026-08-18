@@ -1,3 +1,5 @@
+> **SUPERSEDED — historical incident record, NOT live guidance.** ADR 0022 removed in-skill context monitoring entirely: no 65% threshold, no `context-checkpoint`, no unconditional gate reset, no handoff/respawn. Flight now runs one Task per spawn and exits. Nothing in this report describes current behavior — read it for the incident only, never as a rule to follow. Current runaway brakes: forced fan-out + inline-impl STOP (ADR 0022) and the bounded-shell contract (ADR 0033).
+
 # Report: Context Compaction Failure — 2026-05-26
 ## Session: e74140fb-8605-45b6-a2b1-c1431ba673c1
 ## Task: Student Dashboard + Enrollment + Course Browse (5 stories)

@@ -2,7 +2,7 @@
 
 **Status:** accepted — supersedes the loop/checkpoint parts of ADR 0002, ADR 0014, ADR 0015; refines ADR 0005, ADR 0006, ADR 0016.
 
-`/e2e-flight` does the implementation work for exactly **one Task** then exits; there is no external ralph driver loop and no 65% / gate-boundary context monitoring inside the skill. Within the spawn flight is the orchestrator and **fans out each slice to a sub-agent in its own worktree** (impl wave) plus a second **expert-review wave** before merge. Because the token blowup (`flight-token-report.md`: one Task = 227 turns / 22.3M cache-read) was caused by fan-out silently **not firing** and running 126 calls inline, fan-out is now **forced**: the worker `ToolSearch`-loads `Agent` + `EnterWorktree` at bootstrap, and the orchestrator doing slice-impl inline is a hard red-flag STOP (`<stall>` + exit).
+`/e2e-flight` does the implementation work for exactly **one Task** then exits; there is no external ralph driver loop and no 65% / gate-boundary context monitoring inside the skill. Within the spawn flight is the orchestrator and **fans out each slice to a sub-agent in its own worktree** (impl wave) plus a second **expert-review wave** before merge. Because the token blowup (one Task = 227 turns / 22.3M cache-read; the session-local incident report was never retained in-repo — the figures here and in §Context are the record) was caused by fan-out silently **not firing** and running 126 calls inline, fan-out is now **forced**: the worker `ToolSearch`-loads `Agent` + `EnterWorktree` at bootstrap, and the orchestrator doing slice-impl inline is a hard red-flag STOP (`<stall>` + exit).
 
 ## Context
 
@@ -24,7 +24,7 @@ The previous design (ADR 0015) put an external AFK driver loop around the skill 
 
 ## Consequences
 
-- With loop + checkpoint + driver-brake all gone, the **only** thing preventing another runaway is fan-out firing + the inline-impl STOP. The forcing mechanism is load-bearing; if `Agent`/`EnterWorktree` cannot be loaded, the worker must stall+exit, never grind inline.
+- With loop + checkpoint + driver-brake all gone, the **only** thing preventing another runaway is fan-out firing + the inline-impl STOP. The forcing mechanism is load-bearing; if `Agent`/`EnterWorktree` cannot be loaded, the worker must stall+exit, never grind inline. **(Amended — ADR 0033.)** That brake proved incomplete: it watches turn count, not wall-clock, so a shell command that never returns is a runaway it cannot see (observed on OpenCode/DeepSeek — a foreground compile/stack-up command hung the spawn indefinitely). ADR 0033 adds the second brake: a Step-0 bounded-shell probe (fail-closed `<e2e-stall reason="unbounded-shell" />`) plus a bounded/non-interactive/self-terminating contract on every command flight or a worker runs.
 - Verification rigor is temporarily lower (gates 4/5 stubbed) — the human-QA checklist is the real net until E2E automation lands.
 - Glossary churn: `Checkpoint`, `Unconditional gate reset`, `Phase transition`, `AFK wrapper`, `Loop driver`, `E2E_DRIVER guard` are removed/deprecated; `Fan-out`, `Sole writer`, `Hard gate` reshaped. CONTEXT.md + AGENTS.md updated alongside.
 

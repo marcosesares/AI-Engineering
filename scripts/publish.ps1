@@ -9,7 +9,7 @@
          package.json
          .claude-plugin/marketplace.json        (metadata.version)
          .claude-plugin/plugin.json
-    3. npm run build        (scripts/build-dist.js — syncs skills + agents into dist/,
+    3. npm run build        (scripts/build-dist.js -- syncs skills + agents into dist/,
                              copies stamped .claude-plugin/ manifests to dist/)
     4. npm run validate     (links, role names, generated dist freshness, JSON manifests)
     5. git commit + tag v<version>   (unless -NoGit)
@@ -17,10 +17,10 @@
     7. npm run publish:marketplace -- --remote <url> --push --force
 
   Auto bump heuristic (compares the last git tag against the working tree):
-    MAJOR  — a published top-level skill dir (.claude/skills/<name>/) was REMOVED
+    MAJOR  -- a published top-level skill dir (.claude/skills/<name>/) was REMOVED
              (breaks installs that reference it).
-    MINOR  — a NEW top-level skill dir was ADDED (new capability/command).
-    PATCH  — everything else (edits, fixes, docs, ADRs).
+    MINOR  -- a NEW top-level skill dir was ADDED (new capability/command).
+    PATCH  -- everything else (edits, fixes, docs, ADRs).
   Override anytime with -Bump major|minor|patch. The decision is printed before
   any file is touched.
 
@@ -32,7 +32,7 @@
 param(
     [ValidateSet("auto", "major", "minor", "patch")]
     [string]$Bump = "auto",
-    # The marketplace is a SEPARATE standalone repo (RELEASING.md) — NOT the source
+    # The marketplace is a SEPARATE standalone repo (RELEASING.md) -- NOT the source
     # repo (github.com/marcosesares/e2e-Engineering). Override with -MarketplaceRemote.
     [string]$MarketplaceRemote = "https://github.com/marcosesares/e2e-engineering-marketplace",
     [switch]$DryRun,
@@ -41,6 +41,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+# Windows PowerShell 5.1 otherwise reads BOM-less UTF-8 as ANSI and writes a BOM.
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
@@ -64,7 +66,7 @@ foreach ($p in $manifestPaths) {
 }
 $originalManifestText = @{}
 foreach ($p in $manifestPaths) {
-    $originalManifestText[$p] = Get-Content $p -Raw
+    $originalManifestText[$p] = [System.IO.File]::ReadAllText($p, $utf8NoBom)
 }
 
 # --- current version (npm is the source of truth) ---
@@ -99,7 +101,7 @@ if ($lastTag) {
 if ($Bump -eq "auto") {
     if     ($removed.Count -gt 0) { $bumpType = "major"; $reason = "removed skill(s): $($removed -join ', ')" }
     elseif ($added.Count   -gt 0) { $bumpType = "minor"; $reason = "added skill(s): $($added -join ', ')" }
-    else                          { $bumpType = "patch"; $reason = "no skill add/remove since $lastTag — content-only" }
+    else                          { $bumpType = "patch"; $reason = "no skill add/remove since $lastTag -- content-only" }
 } else {
     $bumpType = $Bump; $reason = "forced via -Bump"
 }
@@ -120,20 +122,20 @@ Write-Host "  new     : $newVersion" -ForegroundColor Green
 
 # --- set version in the three manifests (regex on the version line; preserve formatting) ---
 function Set-JsonVersion([string]$path, [string]$version) {
-    $raw = Get-Content $path -Raw
+    $raw = [System.IO.File]::ReadAllText($path, $utf8NoBom)
     $pattern = '("version"\s*:\s*")\d+\.\d+\.\d+(")'
     if (-not [regex]::IsMatch($raw, $pattern)) { throw "no version field found in $path" }
     # first "version": "X.Y.Z" occurrence (top-level for package/plugin; metadata for marketplace)
     $new = [regex]::Replace($raw, $pattern, "`${1}$version`${2}", 1)
-    if ($new -ne $raw) { Set-Content -Path $path -Value $new -NoNewline -Encoding utf8 }
-    Write-Host "  set $version → $([System.IO.Path]::GetFileName($path))"
+    if ($new -ne $raw) { [System.IO.File]::WriteAllText($path, $new, $utf8NoBom) }
+    Write-Host "  set $version -> $([System.IO.Path]::GetFileName($path))"
 }
 Step "Stamp source manifests"
 Set-JsonVersion $pkgPath $newVersion
 Set-JsonVersion $plgPath $newVersion
 Set-JsonVersion $mktPath $newVersion
 
-Step "Build (npm run build — copies stamped manifests to dist)"
+Step "Build (npm run build -- copies stamped manifests to dist)"
 Run "npm" @("run", "build")
 
 Step "Validate (npm run validate)"
@@ -141,12 +143,12 @@ Run "npm" @("run", "validate")
 
 # --- publish ---
 if ($DryRun) {
-    Step "DRY RUN — npm publish --dry-run (no push, no tag)"
+    Step "DRY RUN -- npm publish --dry-run (no push, no tag)"
     try {
         Run "npm" @("publish", "--access", "public", "--dry-run")
     } finally {
         foreach ($p in $manifestPaths) {
-            Set-Content -Path $p -Value $originalManifestText[$p] -NoNewline -Encoding utf8
+            [System.IO.File]::WriteAllText($p, $originalManifestText[$p], $utf8NoBom)
         }
     }
     Write-Host "`nDry run complete. Nothing published, pushed, tagged, or committed." -ForegroundColor Yellow
@@ -161,7 +163,7 @@ if (-not $NoGit) {
     if ($status) { Run "git" @("commit", "-m", "Release v$newVersion") }
     else { Write-Host "  nothing to commit" }
     $existing = git tag --list "v$newVersion"
-    if ($existing) { Write-Host "  tag v$newVersion already exists — skipping" }
+    if ($existing) { Write-Host "  tag v$newVersion already exists -- skipping" }
     else { Run "git" @("tag", "v$newVersion") }
 }
 
