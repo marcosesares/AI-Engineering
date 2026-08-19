@@ -19,9 +19,12 @@ You act on the **built slice, post-green** — verify the code meets the targets
 - **Accessibility.** Labels, roles, focus order, keyboard reachability, no skipped heading levels.
 - **Constitution.** simplicity-first, surgical-changes, scope discipline.
 
+## Budget (hard)
+≤15 tool calls total. Return bounded JSON only (verdict + findings). Cannot finish in budget → return what you have with `incomplete: true`; never loop, never hang.
+
 ## Return format (tight)
 ```
 verdict: clean | findings
 - [Critical|Important|Minor] <file:line> — <problem>. <fix direction>.
 ```
-Critical = breaks the design system / duplicates an owned component / a11y blocker. Important = inconsistency or missing state to fix now. Minor = polish note. No praise. If clean, one line.
+Critical = breaks the design system / duplicates an owned component / a11y blocker. Important = inconsistency or missing state to fix now. Minor = polish note. No praise. If clean, one line. Critical/Important imply an ACTION — a finding with "no change required" is Minor.

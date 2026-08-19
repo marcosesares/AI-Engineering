@@ -89,6 +89,7 @@ Record every timeout in `progress.txt`: `TIMEOUT <cmd> @<budget>s`.
 - Bare `git merge` / `git commit` (editor prompt blocks forever) — always `--no-edit` / `-m`, `GIT_EDITOR=true`.
 - Bare `vitest` (watch mode never exits) — always `npx vitest run`.
 - `./gradlew --stop` during a flight (machine-wide daemon sweep while parallel work exists).
+- Wrapping a long-running/compile/test command in a repo tool filter or proxy (`rtk proxy gradlew`, output mangles on `git show branch:path`) — filters apply to OUTPUT READS only; a proxied compile can mangle verdicts or hang.
 - Retrying a timed-out command unchanged more than once.
 - Treating a gate-5 timeout as `blocked` (it is a gate-5 failure → `pending-qa`, ADR 0025).
 - Leaving a detached stack up after the gate — teardown is still owed.

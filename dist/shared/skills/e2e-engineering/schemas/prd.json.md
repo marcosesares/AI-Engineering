@@ -16,6 +16,7 @@ Structured state for one Task. Written and owned by orchestrator (sole writer). 
       "acceptanceCriteria": ["string", "..."],
       "priority": "number — lower = sooner within ready set",
       "sliceType": "tracer | schema | logic | api | ui",
+      "estimatedLoc": "number — REQUIRED, prod-LoC estimate for this slice, set by to-prd. MUST sit inside the sizing bounds for its sliceType (tracer/schema/api/logic ≤300, ui ≤600, pure-CSS/styling ≤300; story with ≥10 ACs → split or add a test-coverage slice). Gate 1 blocks oversized — split, never queue.",
       "depends_on": ["story-id", "..."],
       "status": "todo | done | blocked",
       "branch": "string — worktree branch for this slice",
@@ -44,4 +45,5 @@ Sidecar files at Task root: `manifests/<story-id>/`. Written by orchestrator at 
 - Sub-agents NEVER write this file. Return slice result manifest; orchestrator reconciles + writes `status` at fan-in. Sidecar `status` fields (slice-result.json, review-result.json) are NEVER authoritative — prd.json is sole source of truth for story status.
 - `resultManifestPath` + `reviewManifestPath` set by orchestrator after fan-in (null until then). Path relative to Task root.
 - `testCases[]` ids point at `.md` test-case docs authored upfront by to-issues.
+- `estimatedLoc` required per story; out-of-bounds for its sliceType = Gate 1 block (to-prd sizing table). The e2e-flight oversized-slice WARN is defense-in-depth only — it should never fire.
 - `integration` set by to-issues (reading ARCHITECTURE.md §1–§2 via §Index offset/limit), not by sub-agent. Single place brownfield ownership decided — once, by orchestrator. See ADR 0013.

@@ -5,6 +5,7 @@ Evidence sidecar. Written by orchestrator at expert-review fan-in. Lives at `tas
 ```json
 {
   "sliceId": "string — story id slug",
+  "notes": "string — optional orchestrator notes (e.g. reviewer-slot gap: re-dispatch exhausted, proceeded without <role>)",
   "reviews": [
     {
       "reviewerId": "string — backend-architect | dba | frontend-reviewer | test-reviewer",
@@ -28,6 +29,7 @@ Individual reviewer return shape (never written to disk by reviewer — passed b
 ## Invariants
 - `reviews[]` contains one entry per reviewer dispatched for this slice.
 - `findings[]` empty array if reviewer found nothing. Absence of entry means reviewer was not dispatched (sliceType routing).
+- `notes` records orchestrator-side anomalies only (hung reviewer proceeded-past, unavailable slot, downgraded severity misuse). Absent when nothing to record.
 - Written after all dispatched reviewers return — orchestrator holds findings in memory until fan-in complete.
 - Orchestrator updates `prd.json` story's `reviewManifestPath` after writing this file.
 - Path in prd.json is relative to Task root: `manifests/<story-id>/review-result.json`.

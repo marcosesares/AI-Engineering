@@ -22,7 +22,7 @@ Sibling to [/e2e-engineering](../e2e-engineering/SKILL.md). Headless implementat
 4. No driver, no lock, no context monitoring. No handoff docs, no checkpoint, no respawn.
 5. Orchestrator output = caveman-ultra, essential only (token discipline).
 6. **Init flow-retro tally (ADR 0027).** Start counters accumulated across this spawn for the flow-retro (`$sharedSkillsRoot/schemas/flow-retro.md`): bounces (by tier), blocked slices + cause, gate-5 failures, stalls, fan-out waves (impl + review), rejected un-evidenced Criticals. Bump them as they occur in Steps 3/5; emit at Step 6.
-7. **Tooling-trap re-read (once).** Read the task's `progress.txt` tail + repo `AGENTS.md` (+ any `RESUME`/handover doc) for repo-specific traps (tool filters like rtk wrapping gradlew, path-length rules, banned flags). Apply them this spawn. The UNIVERSAL traps are in the skill itself (`$sharedSkillsRoot/impl/command-execution.md` + Red flags below) — never re-discover them per slice.
+7. **Tooling-trap re-read (once).** Read the task's `progress.txt` tail + repo `AGENTS.md` (+ any `RESUME`/handover doc) for repo-specific traps (tool filters like rtk wrapping gradlew, path-length rules, banned flags). Apply them this spawn. The UNIVERSAL traps are in the skill itself (`$sharedSkillsRoot/impl/command-execution.md` + Red flags below) — never re-discover them per slice. Repo tool filters/proxies (rtk etc.) NEVER wrap long-running or compile/test commands — a proxy/filter on gradlew/tsc can mangle output or hang (`rtk proxy gradlew` trap); filters apply to OUTPUT reads only, or the repo AGENTS.md explicitly says otherwise.
 
 ---
 
@@ -62,6 +62,8 @@ Read (offset/limit, only needed sections): `tasks/<id>/prd.json` (slice DAG) + `
 `compileCmd` is COMPILE-ONLY — it never feeds the gate-5 stack rebuild (that build comes from §4.1 Stack-up). Cache `compileCmd` once for the spawn (alongside the docker-env cache); pass it in every sub-agent spawn manifest in Step 3. Do NOT re-detect per slice. Whether from §4.1 or detected, it runs under the Step-0 `$sharedSkillsRoot/impl/command-execution.md` contract — bounded (6 min; gradle focused 12 min), non-interactive, self-terminating; a §4.1 command carrying a watch/serve flag is a §4.1 defect → WARN + skip, never run it.
 
 **Codebase-map (brownfield only).** Missing `tasks/<id>/codebase-map.md` → `<e2e-stall reason="codebase-map-missing — pre-impl incomplete, run /e2e-engineering" />` + EXIT. Do NOT cold-read source files to compensate. If present: read §1–§3 ONCE (§Index for offset/limit). Hold in context. Do NOT re-read in Steps 3 or 4.
+
+**Oversized-slice WARN (defense-in-depth — Gate 1 should have blocked).** Story `estimatedLoc` beyond its sliceType bound (tracer/schema/api/logic >300, ui >600, ≥10 ACs without a test-coverage slice) → WARN in `progress.txt` (`WARN oversized slice <id> — Gate 1 sizing defect, bounce risk`), still fly it, do not block; route the defect upstream via flow-retro, not the client queue. Missing `estimatedLoc` → no WARN (cannot evaluate; treat as schema drift).
 
 ---
 
@@ -163,6 +165,7 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - Bare `vitest` (watch mode never exits) — always `npx vitest run`.
 - `npx` without `--yes` or without a binary pre-check (install prompt / silent download blocks headless).
 - `./gradlew --stop` during a flight (machine-wide daemon sweep while parallel work exists — banned; supersedes the old gradle-hang postmortem recommendation).
+- Wrapping a compile/test command in a repo tool filter/proxy (`rtk proxy gradlew`) — filters apply to output READS only; proxied compiles mangle verdicts or hang.
 - Waiting unbounded on a hung reviewer (re-dispatch once with halved scope; then proceed with the rest and record the gap in `notes`).
 - Creating a slice branch from `origin/master` instead of current `task/<id>` HEAD (stale base → stale-API code).
 - Resetting a committed slice to `todo` when its branch has commits ahead (use the committed-but-unrecorded reconcile path — Step 2.2).

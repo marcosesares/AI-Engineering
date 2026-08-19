@@ -4,7 +4,7 @@ Splits PRD into vertical slices, emits `depends_on` DAG, authors test-case `.md`
 
 ## What to do
 0. **Pin integration (brownfield, if ARCHITECTURE.md exists).** Read ARCHITECTURE.md §1–§2 (use §Index for offset/limit). Per story, decide WHICH existing owner/seam it extends; record in story's `integration` field in prd.json (e.g. "extend EnrollmentResource — completion endpoints, no new class"). One place brownfield ownership decided — once, by orchestrator — so N parallel sub-agents don't each guess differently. No ARCHITECTURE.md → skip.
-1. **Slice** each PRD story into vertical slices ordered tracer → schema → logic → api → ui. Slice = shippable end-to-end through its layer, not horizontal layer.
+1. **Slice** each PRD story into vertical slices ordered tracer → schema → logic → api → ui. Slice = shippable end-to-end through its layer, not horizontal layer. **Sizing bound (HARD — Gate 1 blocks):** every story gets `estimatedLoc` (prod-LoC estimate) inside its sliceType bound (tracer/schema/api/logic ≤300, ui ≤600, pure-CSS ≤300); PRD story oversized → SPLIT it here (new ids + `depends_on` edges). Story ≥10 ACs → split or add a test-coverage slice.
 2. **Build DAG** — express ordering as `depends_on` edges, NOT fixed per-iteration count. Each feature sequential along chain; independent features/branches have no edge → fan out in parallel. Set `sliceType` per story.
 3. **Author test-cases UPFRONT** from PRD testing-decisions. One `.md` per behavior in `<Task root>/test-cases/` — alongside Task's prd.json, never at base when Task root exists. Two shapes:
    - **feature** — story-level journey. Automated IN-SLICE by slice sub-agent.
@@ -39,3 +39,4 @@ Two stories with no `depends_on` edge → same ready set → parallel worktrees.
 - Routing forward-flow slices through triage (born ready-for-agent).
 - Two file-overlapping stories edge-free in same ready set (serialize them).
 - Skipping `integration` pin when ARCHITECTURE.md exists (sub-agents re-guess ownership).
+- Emitting a story missing `estimatedLoc` or beyond its sliceType bound — split it here, never hand an oversized slice to flight.

@@ -69,6 +69,7 @@ Sequence (bracketed = conditional): **[map-codebase? (brownfield)] → grill-wit
 **→ On consent: queue Task, then batch or launch.** Steps IN ORDER — each is human chokepoint, none auto-resolved:
 
 1. **Task body + brownfield check.** Verify task body complete at `.e2e-engineering/tasks/<id>/`. Do NOT copy/move from base. `<id>` fixed at Step 1. **Brownfield only:** verify `tasks/<id>/codebase-map.md` exists — missing → stall: `"Pre-impl incomplete — run map-codebase first."` Do not queue without it. **API-bearing task (any api/logic story hitting an endpoint):** verify `ARCHITECTURE.md §4.1` test architecture filled (stack-up, baseURL, auth, data isolation) — empty → stall: `"Fill ARCHITECTURE.md §4.1 test architecture before launch (ADR 0024)."` Do not queue without it.
+   **Slice-size check (HARD).** Every story in `prd.json` has `estimatedLoc` AND sits inside its sliceType bound (tracer/schema/api/logic ≤300, ui ≤600, pure-CSS ≤300; story with ≥10 ACs → split or a test-coverage slice exists). Any violation → do NOT queue; stall: `"Split oversized slices in prd.json before launch (to-prd sizing bounds) — re-run to-prd."` This is what keeps the e2e-flight oversized-slice WARN from ever firing.
 2. **Land in [queue.json](../../../skills/e2e-engineering/schemas/queue.json.md) as `ready-for-flight`** (ADR 0029) — two cases:
    - **Was `needs-spec`** (existing queued idea just specced via the menu): FLIP its status `needs-spec → ready-for-flight`; keep its `priority`/`dependsOn`/`parentTask`. Do NOT append a duplicate.
    - **New forward-flow feature** (not yet in queue): append entry `{ id, title, priority, dependsOn, status:ready-for-flight, selected:false, parentTask:null }`. Ask human for `priority` + cross-Task `dependsOn` (camelCase).
@@ -77,7 +78,7 @@ Sequence (bracketed = conditional): **[map-codebase? (brownfield)] → grill-wit
    - **From new-spec consent** (this just finished steps 1–2): Ask *"Spec another feature, or launch flight now?"* — STOP for answer (end with `WAITING: spec another feature, or launch flight?`).
      - **Another** → loop back to Pre-implementation for next feature — establish NEW Task root first. Queue grows.
      - **Launch** → **Run-selection checkbox (HARD interactive STOP).** Present every `status:ready-for-flight` Task with priority + dependsOn as unchecked checklist; ASK human which to drain THIS flight. **Do NOT pre-check all, do NOT assume "all", do NOT launch until human returns checked subset.** Only auto-addition allowed: unmet `dependsOn` of checked Task (warn: "billing-export needs auth-login — adding it"). Set `selected:true` ONLY on human-chosen set (+ pulled-in deps). Human checks nothing → do not launch. End with `WAITING: check which ready Task(s) to drain this flight`.
-   - **Resume mode** (Step 0, human already named ready Task ID(s) in their reply — ADR 0028): the named IDs ARE the human-chosen set; no checklist re-presentation. Verify each is `status:ready-for-flight` (ADR 0029). Auto-add only unmet `dependsOn` (warn). Set `selected:true` on that set, then proceed to step 4. Reply ambiguous / no valid ready ID → fall back to the unchecked checklist STOP above.
+   - **Resume mode** (Step 0, human already named ready Task ID(s) in their reply — ADR 0028): the named IDs ARE the human-chosen set; no checklist re-presentation. Verify each is `status:ready-for-flight` (ADR 0029) AND its stories pass the slice-size check (step 1 — `estimatedLoc` inside sliceType bounds); violation → stall `"Split oversized slices in prd.json before launch (to-prd sizing bounds)."` Auto-add only unmet `dependsOn` (warn). Set `selected:true` on that set, then proceed to step 4. Reply ambiguous / no valid ready ID → fall back to the unchecked checklist STOP above.
 4. **Invoke [/e2e-flight](../e2e-flight/SKILL.md)** for first selected Task. **Flight implements ONE Task per invocation, then exits (ADR 0022).** Tell human: "Flight implements one Task per `/e2e-flight` run. I've kicked off `<id>`; re-run `/e2e-flight` for each remaining selected Task, then `/e2e-engineering` to QA sign-off. Watch progress tailing `tasks/<id>/progress.txt`."
 
 Each `/e2e-flight` invocation is fresh context — pre-impl grilling never contaminates implementation.
@@ -142,7 +143,7 @@ Task close (single-Task): extract durable learnings, ensure amendments resolved,
 
 | # | Gate | Type | Where |
 |---|------|------|-------|
-| 1 | PRD approved → impl | HARD | end of pre-impl |
+| 1 | PRD approved → impl (incl. slice-size check: every story `estimatedLoc` inside sliceType bound — oversized = block) | HARD | end of pre-impl |
 | 2 | TDD red before green | HARD | in tdd.md per slice |
 | 3 | debug escalation (3 strikes → systematic-debugging → blocked → stall→human) | HARD | in loop |
 | 4 | ~~E2E suite green → post-impl~~ | RETIRED (ADR 0024, Fork Y — UI not automated, verified in human-QA) | — |

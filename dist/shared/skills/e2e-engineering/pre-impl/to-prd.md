@@ -15,6 +15,21 @@ Converts grill-with-docs notes (+ research / prototype / codebase-map findings) 
 ## Refactor-shaped stories (taskType: refactor)
 Do NOT force `As a user…`. Refactor story = **behavior-preservation statement + structural goal**. Capture old-code transformation (modified OR removed) as explicit acceptance criteria + migration-step ordering (introduce new → migrate callers → modify/remove old). e2e = mandatory safety net. See ADR 0012.
 
+## Slice sizing — HARD (Gate 1 blocks oversized)
+Reports (user-management-screen, surface-api-error-messages-ui loc/context, user-mgmt-create-form-style) show sub-agent quality collapses and bounce rounds climb past these bounds. Size slices HERE so e2e-flight never sees an oversized one:
+
+| Slice shape | Max prod LoC | Notes |
+|---|---|---|
+| tracer / schema / api / logic | 300 | >300 → split endpoint/concern into new stories + `depends_on` edges |
+| frontend UI (component+logic) | 600 | >600 → split "infrastructure/layer" vs "components" sub-slices |
+| multi-file front+back | 900 | → 2 impl + 3 reviewers, split by layer into separate stories |
+| pure CSS/styling refactor | 300 | single-file CSS-only: zero logic/API/i18n/test changes → flight MAY run inline |
+
+- Every story gets `estimatedLoc` in `prd.json` (REQUIRED field, prod-LoC estimate). Missing = Gate 1 block.
+- Story beyond its sliceType bound, or ≥10 ACs without a test-coverage slice, → **SPLIT now** (new story ids + `depends_on`), never write it oversized.
+- Bounce budget heuristic: +1 expected bounce round per 200 LoC of complex logic (infinite scroll + drawer + create-mode class of complexity) — use it to justify the split, not to waive it.
+- Oversized story reaching flight anyway = to-prd/Gate-1 defect → e2e-flight WARNs in `progress.txt`; route the defect upstream at flow-retro, not into the client queue.
+
 ## Exit → HARD GATE 1
 Present PRD to user. Require EXPLICIT consent before implementation. Do not proceed on silence. Highest-fidelity gate — refactors and features alike are high blast radius.
 
@@ -23,6 +38,7 @@ Present PRD to user. Require EXPLICIT consent before implementation. Do not proc
 - Writing implementation detail into PRD (PRD = what + acceptance, not how).
 - Proceeding to implementation without explicit human approval.
 - Omitting testing-decisions (downstream test-cases have nothing to derive from).
+- Writing a story missing `estimatedLoc` or beyond its sliceType bound (Gate 1 blocks — split it now, never queue oversized).
 - Leaving ARCHITECTURE.md §4.1 test architecture empty on an API-bearing task (gate-1 blocks; slices have no stack/auth/isolation contract).
 - UI-bearing task with empty/missing DESIGN.md — run the [design](design.md) step first to set register + seed it (mirror of the §4.1 test-architecture stall; UI slices otherwise have no design contract).
 - Creating/amending ARCHITECTURE.md without updating §Index.

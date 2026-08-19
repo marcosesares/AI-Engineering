@@ -24,7 +24,7 @@ For any API/endpoint this slice implements: write red-green **Playwright `reques
 ### 4. Debug escalation (HARD GATE 3)
 Fix fails 3 times → STOP. Do not blind-retry. Return to orchestrator reporting 3-strike. Orchestrator re-dispatches ONCE with [systematic-debugging](./systematic-debugging.md).
 
-**Every command you run is bounded + non-interactive** per [command-execution](./command-execution.md) (ADR 0033): compile with the injected `compileCmd` (never assume `mvn`), 5 min; test suite 20 min. A timeout counts as a failed fix (gate-3 strike) — log `TIMEOUT <cmd> @<budget>s`, add a `findings[]` `type:blocker` carrying cmd + budget, never re-run unchanged more than once. Never foreground a watch/serve/dev command or attach to logs — it never returns and no brake will catch it.
+**Every command you run is bounded + non-interactive** per [command-execution](./command-execution.md) (ADR 0033): compile with the injected `compileCmd` (never assume `mvn`), 6 min (focused gradle 12 min); test suite 20 min (full backend suite 30 min). A timeout counts as a failed fix (gate-3 strike) — log `TIMEOUT <cmd> @<budget>s`, add a `findings[]` `type:blocker` carrying cmd + budget, never re-run unchanged more than once. Never foreground a watch/serve/dev command or attach to logs — it never returns and no brake will catch it. All commands use the workdir param (never in-command `cd`); long producers redirect to a log file (never `Out-String`/`head`/`tail` pipe-filters); git always `commit -m` / `merge --no-edit`; tests always `npx vitest run` (bare `vitest` = watch = hang); never `./gradlew --stop`.
 
 ## Return manifest (to orchestrator)
 Return compact JSON only: `sliceId`, `status`, one-line `summary`, `testsPassed`, `branch`, `evidencePaths[]`, `findings[]`.
