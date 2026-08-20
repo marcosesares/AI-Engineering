@@ -33,7 +33,7 @@ Installing drops **four top-level skills** plus a shared sub-skill tree they seq
 
 Everything else — `map-codebase`, `research`, `prototype`, `design`, `to-prd`, `to-issues`, `triage`, `tdd`, `systematic-debugging`, `e2e-loop`, `verification`, `review`, `human-qa` — is a **sub-skill** the orchestrator sequences, not a separate command. The conditional `design` step (ADR 0030) sets the visual register and seeds the `DESIGN.md` design system for UI-bearing Tasks.
 
-Four expert reviewer agents (`backend-architect`, `dba`, `frontend-reviewer`, `test-reviewer`) review built slices, with `backend-architect`/`dba` also advising the PRD; a dedicated **design advisor** (`product-designer`) advises the PRD's UI lens against `DESIGN.md` + the `ui-design` anti-slop standard before any code is built; `architecture-scout` powers `/e2e-deslop`.
+Four expert reviewer agents (`backend-architect`, `dba`, `frontend-reviewer`, `test-reviewer`) review built slices, with `backend-architect`/`dba` also advising the PRD; a `finding-verifier` adjudicates any finding raised without a cite — proving it or killing it — so no finding is silently dropped and none merges unfixed; a dedicated **design advisor** (`product-designer`) advises the PRD's UI lens against `DESIGN.md` + the `ui-design` anti-slop standard before any code is built; `architecture-scout` powers `/e2e-deslop`.
 
 In Claude Code, after install: restart/refresh, then type `/e2e-engineering`. Triggers also include "ship-it", "ship it", "implement feature X", "write e2e for X", "build this end to end", "run the full flow".
 
