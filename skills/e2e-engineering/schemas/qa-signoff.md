@@ -31,6 +31,16 @@ Preconditions: <env/data/login state>
   - ac:   <AC-id> <criterion>                  -> human routes to new repair Task at QA sign-off
 - (empty section when gate 5 was fully green)
 
+## Release Blockers (open Critical at bounce cap -> triage -> P1 repair Task)
+- (written by FLIGHT only when a slice merged with an open Critical finding — ADR 0035)
+  - <slice-id> <location> — <message>  [evidence: <cite>]  -> P1 repair Task at QA sign-off
+- (section ABSENT when no Critical is open)
+
+## Followups (open findings at bounce cap -> triage -> repair Tasks)
+- (written by FLIGHT from followups.json when any slice exhausted its 4 bounce rounds — ADR 0035)
+  - [<severity>] <slice-id> <location> — <message>  [evidence: <cite>]  -> repair Task (suggested P<1|3>)
+- (empty section when every slice converged)
+
 ## Findings (-> triage -> new queue Tasks)
 - (filled DURING QA session by human)
   - bug:  <desc>   -> new bugfix Task (parentTask=<this id>); this Task still goes done
@@ -42,8 +52,8 @@ Preconditions: <env/data/login state>
 ```
 
 ## Sections: flight fills vs human fills
-- **Flight fills** (headless): full Manual test-case scripts (from prd.json testCases disposition Manual — **all UI cases are Manual, Fork Y/ADR 0024**, incl. Preconditions, Steps, Expected), AC list with gate-5-auto-verified (unit/API-covered) ticked, pending amendments staged from progress.txt, Gate 5 Failures if any (ADR 0025).
-- **Human fills** (QA session): walks Manual cases, eyeballs visual ACs, decides each amendment, routes Gate 5 Failures through triage into repair Tasks, logs Findings, records Decision.
+- **Flight fills** (headless): full Manual test-case scripts (from prd.json testCases disposition Manual — **all UI cases are Manual, Fork Y/ADR 0024**, incl. Preconditions, Steps, Expected), AC list with gate-5-auto-verified (unit/API-covered) ticked, pending amendments staged from progress.txt, Gate 5 Failures if any (ADR 0025), Followups mirrored from `followups.json` and Release Blockers when a Critical is open at cap (ADR 0035).
+- **Human fills** (QA session): walks Manual cases, eyeballs visual ACs, decides each amendment, routes Gate 5 Failures and Followups/Release Blockers through triage into repair Tasks, logs Findings, records Decision.
 
 ## Manual case rules
 - Write full script bodies, not ids/titles only.
