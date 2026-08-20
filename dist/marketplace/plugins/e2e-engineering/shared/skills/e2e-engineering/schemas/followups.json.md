@@ -14,7 +14,7 @@ Carry-forward record for expert-review findings still `open` when a slice's boun
       "location": "string — file:line or component/area",
       "message": "string — the defect, one line",
       "evidence": "string — file:line | test name | log path | searched-absence scope",
-      "bounceRounds": "number — rounds spent before the cap exhausted (4)",
+      "bounceRounds": "number — value of resume.json bounce.rounds at exhaustion (5 = the 4 spent rounds plus the increment that tripped the cap)",
       "suggestedPriority": "number — per entry, from its own severity: Critical -> 1, Important/Minor -> 3"
     }
   ]

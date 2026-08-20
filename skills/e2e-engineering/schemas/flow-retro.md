@@ -11,7 +11,7 @@ Per-Task PROCESS-friction record (ADR 0027). Written by `/e2e-flight` at Step 6 
 - blocked slices: <n> — <slice-id: cause> ...
 - gate-5 failures: <n>
 - stalls: <n> — <reason> ...
-- fan-out fired: <n> waves (impl: <n>, review: <n>)
+- fan-out fired: <n> waves (impl: <n>, review: <n>, verify: <n>)
 - bounce rounds: <slice-id: n/4> ... (cap exhausted: <n> slices)
 - verifier spend: <n> findings (confirmed <n> / refuted <n> / inconclusive <n>)
 - open-at-cap: <n> findings -> <n> followups (P1 <n>, P3 <n>)

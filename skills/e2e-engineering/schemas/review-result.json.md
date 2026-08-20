@@ -30,7 +30,7 @@ Evidence sidecar. Written by orchestrator at expert-review fan-in. Lives at `tas
 }
 ```
 
-Individual reviewer return shape (never written to disk by reviewer — passed back to orchestrator). Reviewers set `severity`, `location`, `message`, `evidence`; the ORCHESTRATOR assigns `id` and `state` at fan-in and fills `verification` after the verify wave.
+Individual reviewer return shape (never written to disk by reviewer — passed back to orchestrator). Reviewers set `severity`, `signal`, `location`, `message`, `evidence`; the ORCHESTRATOR assigns `id` and `state` at fan-in and fills `verification` after the verify wave.
 ```json
 { "reviewerId": "string", "sliceId": "string", "findings": [ { "severity", "signal", "location", "message", "evidence" } ] }
 ```
@@ -49,7 +49,7 @@ Verifier return shape (one per unproven finding, `finding-verifier` — never wr
 - **`signal: "NeedsVerification"`** marks a finding the reviewer could not prove. It is orthogonal to `severity`, which still carries the severity the reviewer would assign — so the `suppressed[]` key `<severity>|<location>|<sha1-8 of message>` is always well-defined. The verify wave clears `signal` to `null` on `confirmed`, or the finding becomes `dropped-refuted`.
 - `verification` is null until the verify wave runs on that finding, and each finding is verified AT MOST ONCE per slice.
 - `notes` records orchestrator-side anomalies only (hung reviewer proceeded-past, unavailable slot, downgraded severity misuse, dropped un-cited Minors). Absent when nothing to record.
-- Written after all dispatched reviewers return — orchestrator holds findings in memory until fan-in complete.
+- **Rewritten at EVERY fan-in** (initial wave, each verify wave, each re-review) with the current `state` and `verification` for every finding — this is what makes the `resume.json` `verifyWave[]` reconcile check work mid-loop. Only the per-round bounce HISTORY is not accumulated here; `progress.txt` and `resume.json` `bounce` carry that.
 - Orchestrator updates `prd.json` story's `reviewManifestPath` after writing this file.
 - Path in prd.json is relative to Task root: `manifests/<story-id>/review-result.json`.
-- Bounce rounds are tracked in `progress.txt` + `resume.json` `bounce.rounds`, not re-written to this sidecar per round; final post-loop state is persisted once.
+- Bounce ROUND HISTORY (which round found what) lives in `progress.txt` + `resume.json` `bounce.rounds`, not here — this file always holds current state, not a per-round log.
