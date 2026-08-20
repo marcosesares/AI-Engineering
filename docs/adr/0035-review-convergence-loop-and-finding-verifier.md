@@ -37,7 +37,7 @@ Expert-review findings had three silent exits: `Minor` was noted and never fixed
 
 ## Consequences
 
-- Worst-case per-slice review cost rises: 4 bounce rounds (was 3), each now re-reviewed (mechanical no longer skips), plus one verify wave. The verify wave is cheap (≤8 calls per unproven finding) and the mechanical/limited re-review is single-reviewer, so the added cost is bounded, not multiplicative.
+- Worst-case per-slice review cost rises: 4 bounce rounds (was 3), each now re-reviewed (mechanical no longer skips), plus one verify wave. The verify wave is cheap (≤8 calls per unproven finding) and the mechanical/limited re-review is bounded to the reviewers holding open findings rather than the full panel, so the added cost is bounded, not multiplicative.
 - A slice can merge with a known open `Critical`. This is deliberate and made loud in two places (`## Release Blockers` in `qa-signoff.md`, P1 followup). Auditability rests on `followups.json` — if the human skips sign-off, the followup never reaches the queue, and the artifact on the task branch is the only record.
 - Reviewers must now cite `Minor` findings to have them actioned, which changes reviewer output shape. All four review-wave reviewer specs (`backend-architect`, `dba`, `frontend-reviewer`, `test-reviewer`) need the severity semantics updated; `product-designer` (pre-build advisory) and `architecture-scout` (deslop) are untouched.
 - `flow-retro.md` loses the `rejected un-evidenced Criticals` counter (the state no longer exists) and gains bounce rounds per slice, verifier spend (confirmed/refuted/inconclusive), open-at-cap → followups (P1/P3), and dropped un-cited Minors.
