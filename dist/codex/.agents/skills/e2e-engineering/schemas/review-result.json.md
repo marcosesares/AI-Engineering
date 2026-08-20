@@ -11,7 +11,7 @@ Evidence sidecar. Written by orchestrator at expert-review fan-in. Lives at `tas
       "reviewerId": "string — backend-architect | dba | frontend-reviewer | test-reviewer",
       "findings": [
         {
-          "id": "string — stable slug, unique within this file; the verify wave and suppressed[] key off it",
+          "id": "string — stable slug, unique within this file; `verifyWave[].findingId` keys off it. NOTE: `suppressed[]` does NOT — it keys off `<severity>|<location>|<sha1-8 of message>` per resume.json",
           "severity": "Critical | Important | Minor",
           "location": "string — file:line or component/area",
           "message": "string",
