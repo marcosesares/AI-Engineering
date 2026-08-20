@@ -95,7 +95,7 @@ Repeat until DAG drained (every slice `done` or `blocked`):
    - No ACTION → downgrade: Important→Minor, Minor→dropped.
    - Un-cited Critical/Important → **verify wave**, never binned.
    - Un-cited Minor → dropped, logged in `review-result.json` `notes`, NO verifier spend (a Minor worth fixing is worth citing).
-   - Coverage doubt without proof → reviewer raises `NeedsVerification` instead of Critical → verify wave.
+   - Coverage doubt without proof → reviewer sets the finding's `signal: "NeedsVerification"` (severity still carries what it WOULD assign) instead of asserting an unproven Critical → verify wave.
 
    **Verify wave (ADR 0035).** Runs after EVERY review/re-review fan-in, BEFORE bounce classification. Dispatch [finding-verifier](../../agents/finding-verifier.md) — one per unproven finding, **in parallel** — for `NeedsVerification` findings + un-cited Critical/Important. Budget ≤8 calls each. Journal `verifyWave[]` in `resume.json` write-ahead before spawn.
    - `confirmed` + cite → `state: open` at the VERIFIER's severity (it owns severity now) → eligible to bounce.
@@ -112,9 +112,9 @@ Repeat until DAG drained (every slice `done` or `blocked`):
    - `open[]` empty → Step 3.4 lint+compile → merge.
    - else `bounce.rounds += 1` — **per slice, ABSOLUTE**. New findings surfaced by a re-review NEVER reset it. Durable in `resume.json` `bounce.rounds`, written write-ahead before each bounce dispatch. **Cap = 4.**
      - `bounce.rounds > 4` → cap exhausted → merge + followup (below). NEVER `blocked`.
-     - else bounce → impl worker fixes **ALL** open findings in ONE pass (Minors piggyback) → re-review → loop. **Findings the re-review no longer raises → `state: fixed`** — nothing else clears them, so without this flip `open[]` never empties and every slice runs to the cap.
+     - else bounce → impl worker fixes **ALL** open findings in ONE pass (Minors piggyback) → re-review → loop. **Findings a re-reviewer that RE-EXAMINED them no longer raises → `state: fixed`** — nothing else clears them, so without this flip `open[]` never empties and every slice runs to the cap.
    - **Tier picks re-review SCOPE, never whether** — no fix merges unread:
-     - **mechanical** (rename/reformat/comment, zero logic lines, verifiable by diff) / **limited** (non-mechanical, no logic change) → re-dispatch **triggering reviewer only**.
+     - **mechanical** (rename/reformat/comment, zero logic lines, verifiable by diff) / **limited** (non-mechanical, no logic change) → re-dispatch **EVERY reviewer that raised an open finding this round** — no more, no fewer.
      - **logic change** → **full re-review wave**.
    - Minor is an ordinary finding. A Minor-only round is legal and costs one round.
    - Merge gate = zero open findings at EVERY severity. Sole exception: cap exhaustion.
@@ -123,7 +123,7 @@ Repeat until DAG drained (every slice `done` or `blocked`):
    - **MERGE the slice.** Tests are green; the residue is a quality/coverage gap, not a red test.
    - `prd.json` story → `status: done`, `notes: "<n> open findings at cap: <severities>"`.
    - `review-result.json` survivors → `state: "open-at-cap"`.
-   - Append each to `tasks/<id>/followups.json` ([schema](../../shared/skills/e2e-engineering/schemas/followups.json.md)); `suggestedPriority` = 1 if ANY open finding is Critical, else 3.
+   - Append each to `tasks/<id>/followups.json` ([schema](../../shared/skills/e2e-engineering/schemas/followups.json.md)); `suggestedPriority` PER ENTRY from its own severity: Critical → 1, Important/Minor → 3.
    - NEVER write `queue.json` — followups reach the queue via [triage](../../shared/skills/e2e-engineering/impl/triage.md) at QA sign-off (ADR 0017 writer table intact).
    - Review-driven slice `blocked` is **RETIRED**. GATE 3 (red tests, 3 failed fixes) still blocks — unchanged.
 
@@ -159,7 +159,7 @@ Run [e2e-loop](../../shared/skills/e2e-engineering/impl/e2e-loop.md): author cro
 
 Write `tasks/<id>/qa-signoff.md` ([schema](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), caveman-ultra): manual test cases to walk, auto-verified ACs to eyeball, staged pending amendments. If gate 5 had failures, write `## Gate 5 Failures` section (each failing test/AC as a finding → triage entry for human to route into a new repair Task at QA sign-off). Do NOT run [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) — needs human. `/e2e-engineering` owns human review + replanning. If any slice exhausted its bounce cap, write `## Followups` from `followups.json` ([schema](../../shared/skills/e2e-engineering/schemas/followups.json.md)) — plus `## Release Blockers` IFF an open finding is Critical (ADR 0035). Flight never queues them; triage does at sign-off.
 
-Also write `tasks/<id>/flow-retro.md` ([schema](../../shared/skills/e2e-engineering/schemas/flow-retro.md), caveman-ultra) from the Step-0 tally (ADR 0027): **§Local retro** (process metrics for the team — bounces by tier, blocked slices + cause, gate-5 failures, stalls, fan-out waves, rejected un-evidenced Criticals) + **§Skill-improvement candidates** (friction that looks like an e2e-engineering TOOL defect, for upstream). SEPARATE from qa-signoff.md — keeps tool-facing signal out of the project QA doc. The human routes §Skill-improvement upstream at QA sign-off (third lane), NOT into the client queue.
+Also write `tasks/<id>/flow-retro.md` ([schema](../../shared/skills/e2e-engineering/schemas/flow-retro.md), caveman-ultra) from the Step-0 tally (ADR 0027): **§Local retro** (process metrics for the team — bounces by tier, bounce rounds per slice vs cap 4, blocked slices + cause, gate-5 failures, stalls, fan-out waves (impl + review + verify), verifier spend (confirmed/refuted/inconclusive), findings left `open-at-cap` + followups produced (P1/P3), un-cited Minors dropped) + **§Skill-improvement candidates** (friction that looks like an e2e-engineering TOOL defect, for upstream). SEPARATE from qa-signoff.md — keeps tool-facing signal out of the project QA doc. The human routes §Skill-improvement upstream at QA sign-off (third lane), NOT into the client queue.
 
 ---
 
