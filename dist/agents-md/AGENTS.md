@@ -53,4 +53,5 @@ rtk pip list            rtk pnpm install        rtk npm run <script>
 - In command chains, prefix each segment: `rtk git add . && rtk git commit -m "msg"`
 - For debugging, use raw command without rtk prefix
 - `rtk proxy <cmd>` runs command without filtering but tracks usage
+- **Never wrap long-running/compile/test commands in `rtk` or any filter/proxy** (`gradlew`, `tsc`, `vitest`, `playwright`, `docker compose up/down`, `npm run build`/`test`, package builds) — a filter on a compile can mangle verdicts or hang the shell (rtk-proxy-gradlew trap). Filters apply to OUTPUT READS only (`rtk git status`, `rtk log`, `rtk err`, `rtk json`); run the producer raw, bounded, redirecting to a log file (e2e-engineering ADR 0033/0034, `impl/command-execution.md`).
 <!-- /headroom:rtk-instructions -->

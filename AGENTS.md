@@ -17,7 +17,7 @@ Codex routing block. Trigger phrases â†’ skill entry points.
 
 When running shell commands, **always prefix with `rtk`**. This reduces context
 usage by 60-90% with zero behavior change. If rtk has no filter for a command,
-it passes through unchanged — so it is always safe to use.
+it passes through unchanged ï¿½ so it is always safe to use.
 
 ## Key Commands
 ```bash
@@ -28,10 +28,10 @@ rtk git status          rtk git diff            rtk git log
 rtk ls <path>           rtk read <file>         rtk grep <pattern>
 rtk find <pattern>      rtk diff <file>
 
-# Test (90-99% savings) — shows failures only
+# Test (90-99% savings) ï¿½ shows failures only
 rtk pytest tests/       rtk cargo test          rtk test <cmd>
 
-# Build & Lint (80-90% savings) — shows errors only
+# Build & Lint (80-90% savings) ï¿½ shows errors only
 rtk tsc                 rtk lint                rtk cargo build
 rtk prettier --check    rtk mypy                rtk ruff check
 
@@ -53,4 +53,5 @@ rtk pip list            rtk pnpm install        rtk npm run <script>
 - In command chains, prefix each segment: `rtk git add . && rtk git commit -m "msg"`
 - For debugging, use raw command without rtk prefix
 - `rtk proxy <cmd>` runs command without filtering but tracks usage
+- **Never wrap long-running/compile/test commands in `rtk` or any filter/proxy** (`gradlew`, `tsc`, `vitest`, `playwright`, `docker compose up/down`, `npm run build`/`test`, package builds) â€” a filter on a compile can mangle verdicts or hang the shell (rtk-proxy-gradlew trap). Filters apply to OUTPUT READS only (`rtk git status`, `rtk log`, `rtk err`, `rtk json`); run the producer raw, bounded, redirecting to a log file (e2e-engineering ADR 0033/0034, `impl/command-execution.md`).
 <!-- /headroom:rtk-instructions -->
