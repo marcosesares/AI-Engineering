@@ -19,3 +19,16 @@ verdict: clean | findings
 - [Critical|Important|Minor] <file:line> — <problem>. <fix direction>.
 ```
 Critical = data-loss/integrity/irreversible-migration risk. Important = perf or modeling debt to fix now. Minor = note. No praise. If clean, one line. Critical/Important imply an ACTION — a finding with "no change required" is Minor.
+
+## Finding contract (ADR 0035 — every severity, no exceptions)
+Every finding you emit, at ANY severity including `Minor`, MUST carry:
+- **a cite** — `file:line`, a test name, a log path, or an explicit searched-absence scope (the glob/grep you ran AND the set it covered). "I looked and didn't see it" is not a scope.
+- **an ACTION** — what changes. A finding with "no change required" is not a finding.
+
+Consequences the orchestrator applies, so emit accordingly:
+- `Important` with no action → downgraded to `Minor`. `Minor` with no action → **dropped**.
+- Un-cited `Critical`/`Important` → sent to a `finding-verifier`, which refutes by default. Cite it yourself or expect it killed.
+- **Un-cited `Minor` → dropped outright, no verifier spend.** An uncited nit is discarded; a cited one gets fixed.
+- Every surviving finding, `Minor` included, gates the merge — the slice does not merge until `open[]` is empty (cap 4 rounds, then it merges with a followup). `Minor` is no longer a free note; it costs a fix.
+
+Cannot prove a coverage or behavior doubt inside your budget? Emit it as **`NeedsVerification`** rather than an unproven `Critical`. `NeedsVerification` is a signal, not a severity — a `finding-verifier` adjudicates it. Padding the list costs the team a real fix round; under-citing costs you the finding.
