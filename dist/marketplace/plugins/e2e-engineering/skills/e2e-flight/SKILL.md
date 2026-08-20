@@ -20,7 +20,7 @@ Sibling to [/e2e-engineering](../e2e-engineering/SKILL.md). Headless implementat
 2. **Bounded-shell probe (fail-closed, ADR 0033).** Adopt [command-execution](../../shared/skills/e2e-engineering/impl/command-execution.md) for EVERY command this spawn runs (compile, package build, stack-up, lint, tests): bounded + non-interactive + self-terminating. Export the non-interactive env once here. Probe: run a deliberately-blocking command under a 5s bound (POSIX `timeout 5 sleep 30`; PowerShell `Start-Job`+`Wait-Job -Timeout 5`) and confirm control returns. Cannot bound → `<e2e-stall reason="unbounded-shell — runtime cannot time-box commands" />` + EXIT. **Second runaway brake** alongside forced fan-out — a hung command is invisible to the inline-STOP (ADR 0022 Consequences). **Preflight (ADR 0034):** run [flight-preflight](../../shared/skills/e2e-engineering/scripts/flight-preflight.ps1) (`pwsh -NoProfile -File`; POSIX-without-pwsh → run the same three checks inline per command-execution §1–§2). FAIL → `<e2e-stall reason="preflight-failed" />` + EXIT. `-StopGradleDaemons` is legal ONLY here at Step 0 with zero parallel work.
 3. No driver, no lock, no context monitoring. No handoff docs, no checkpoint, no respawn.
 4. Orchestrator output = caveman-ultra, essential only (token discipline).
-5. **Init flow-retro tally (ADR 0027).** Start counters accumulated across this spawn for the [flow-retro](../../shared/skills/e2e-engineering/schemas/flow-retro.md): bounces (by tier), blocked slices + cause, gate-5 failures, stalls, fan-out waves (impl + review), rejected un-evidenced Criticals. Bump them as they occur in Steps 3/5; emit at Step 6.
+5. **Init flow-retro tally (ADR 0027).** Start counters accumulated across this spawn for the [flow-retro](../../shared/skills/e2e-engineering/schemas/flow-retro.md): bounces (by tier), blocked slices + cause, gate-5 failures, stalls, fan-out waves (impl + review + verify), bounce rounds per slice vs cap 4, verifier spend (confirmed/refuted/inconclusive), findings left `open-at-cap` + followups produced (P1/P3), un-cited Minors dropped. Bump them as they occur in Steps 3/5; emit at Step 6.
 6. **Tooling-trap re-read (once).** Read the task's `progress.txt` tail + repo `AGENTS.md` (+ any `RESUME`/handover doc) for repo-specific traps (tool filters like rtk wrapping gradlew, path-length rules, banned flags). Apply them this spawn. The UNIVERSAL traps are in the skill itself ([command-execution](../../shared/skills/e2e-engineering/impl/command-execution.md) + Red flags below) — never re-discover them per slice. Repo tool filters/proxies (rtk etc.) NEVER wrap long-running or compile/test commands — a proxy/filter on gradlew/tsc can mangle output or hang (`rtk proxy gradlew` trap); filters apply to OUTPUT reads only.
 
 ---
@@ -87,22 +87,47 @@ Repeat until DAG drained (every slice `done` or `blocked`):
    - ui → [frontend-reviewer](../../agents/frontend-reviewer.md) (reviews against the approved `DESIGN.md` + [ui-design standard](../../shared/skills/e2e-engineering/standards/ui-design.md) — deviation = Important, anti-slop defect = normal severity) + frontend lens of [backend-architect](../../agents/backend-architect.md)
    - every slice → [test-reviewer](../../agents/test-reviewer.md) (AC coverage)
 
-   **Reviewer context injection.** Before dispatching, read method signatures (not bodies) of existing test files touched by this slice. Inject as `existingTests[]` in each reviewer prompt. Reviewers must cite a specific line/test proving a coverage gap before assigning Critical — orchestrator rejects un-evidenced Criticals without bounce.
+   **Reviewer context injection.** Before dispatching, read method signatures (not bodies) of existing test files touched by this slice. Inject as `existingTests[]` in each reviewer prompt. Reviewers must cite a specific line/test proving a coverage gap before assigning Critical. Un-cited Critical/Important are NOT binned — they go to the verify wave (ADR 0035).
 
-   Reviewers are read-only and independent — always parallel, never serial. Each reviews slice vs PRD + [constitution](../../shared/skills/e2e-engineering/constitution.md) + (brownfield) ARCHITECTURE slice + `existingTests[]`. Each returns **reviewer result**: `{ reviewerId, sliceId, findings[] }`. Findings: **Critical / Important / Minor**.
+   Reviewers are read-only and independent — always parallel, never serial. Each reviews slice vs PRD + [constitution](../../shared/skills/e2e-engineering/constitution.md) + (brownfield) ARCHITECTURE slice + `existingTests[]`. Each returns **reviewer result**: `{ reviewerId, sliceId, findings[] }` ([schema](../../shared/skills/e2e-engineering/schemas/review-result.json.md)). Severity enum is exactly **Critical / Important / Minor** — `NeedsVerification` is a pre-verify SIGNAL, not a severity; `Unsubstantiated` is retired (ADR 0035). Orchestrator assigns each finding an `id` + `state` at fan-in.
 
-   **Finding evidence gate.** Critical/Important findings MUST cite evidence: `file:line`, test name, log path, or explicit searched-absence scope. No cite → orchestrator records `Unsubstantiated`, no bounce. Coverage doubt without proof → `NeedsVerification`, not Critical.
+   **Finding hygiene gate (pre-verify, ADR 0035).** EVERY finding, ANY severity, needs a cite (`file:line`, test name, log path, explicit searched-absence scope) AND an implied ACTION.
+   - No ACTION → downgrade: Important→Minor, Minor→dropped.
+   - Un-cited Critical/Important → **verify wave**, never binned.
+   - Un-cited Minor → dropped, logged in `review-result.json` `notes`, NO verifier spend (a Minor worth fixing is worth citing).
+   - Coverage doubt without proof → reviewer raises `NeedsVerification` instead of Critical → verify wave.
+
+   **Verify wave (ADR 0035).** Runs after EVERY review/re-review fan-in, BEFORE bounce classification. Dispatch [finding-verifier](../../agents/finding-verifier.md) — one per unproven finding, **in parallel** — for `NeedsVerification` findings + un-cited Critical/Important. Budget ≤8 calls each. Journal `verifyWave[]` in `resume.json` write-ahead before spawn.
+   - `confirmed` + cite → `state: open` at the VERIFIER's severity (it owns severity now) → eligible to bounce.
+   - `refuted` → `state: dropped-refuted`, logged.
+   - `inconclusive` → treated as **refuted** (adversarial default — a starved verifier must not manufacture a bounce).
+   - **Verify-once + suppress.** Each finding is verified AT MOST ONCE per slice. `dropped-refuted` keys go to `resume.json` `suppressed[]` (`<severity>|<location>|<sha1-8 of message>`); a later re-review may NOT re-raise them. Without suppression the loop never converges.
+   - Verify wave does NOT consume a bounce round — it is not a fix.
 
    **Reviewer prompt budget (hard).** Every reviewer prompt carries a tool-call budget (≤15 calls) and must return bounded JSON only. **Stuck-reviewer protocol:** reviewer hangs or is cancelled with no result → re-dispatch ONCE with halved scope (≤2 checks, ≤8 tool calls). Still nothing → proceed with the remaining reviewers' results, record the gap in `review-result.json` `notes`; never wait unbounded, never block the merge on an unavailable reviewer slot alone (flight-stall postmortem — one stuck reviewer stalled a whole wave).
 
    **Severity discipline.** Critical/Important imply an ACTION. A finding marked Important with "no change required" → downgrade to Minor (orchestrator overrides).
 
-   **Three-tier bounce.** On Critical/Important finding requiring a fix:
-   - **Mechanical** (rename/reformat/comment only — zero logic lines changed, verifiable by diff) → impl worker fixes; orchestrator logs `"skip re-review: mechanical, diff confirms no logic change"`. No re-review dispatched.
-   - **Limited** (non-mechanical, no logic change) → re-dispatch triggering reviewer only.
-   - **Logic change** → full re-review wave.
+   **Convergence loop (ADR 0035 — replaces the bounce cap).** `open[]` = findings with `state: open`, ANY severity.
+   - `open[]` empty → Step 3.4 lint+compile → merge.
+   - else `bounce.rounds += 1` — **per slice, ABSOLUTE**. New findings surfaced by a re-review NEVER reset it. Durable in `resume.json` `bounce.rounds`, written write-ahead before each bounce dispatch. **Cap = 4.**
+     - `bounce.rounds > 4` → cap exhausted → merge + followup (below). NEVER `blocked`.
+     - else bounce → impl worker fixes **ALL** open findings in ONE pass (Minors piggyback) → re-review → loop. **Findings the re-review no longer raises → `state: fixed`** — nothing else clears them, so without this flip `open[]` never empties and every slice runs to the cap.
+   - **Tier picks re-review SCOPE, never whether** — no fix merges unread:
+     - **mechanical** (rename/reformat/comment, zero logic lines, verifiable by diff) / **limited** (non-mechanical, no logic change) → re-dispatch **triggering reviewer only**.
+     - **logic change** → **full re-review wave**.
+   - Minor is an ordinary finding. A Minor-only round is legal and costs one round.
+   - Merge gate = zero open findings at EVERY severity. Sole exception: cap exhaustion.
 
-   Reviewers never fix or merge. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
+   **Cap exhaustion → merge + followup (ADR 0035).** On entering round 5:
+   - **MERGE the slice.** Tests are green; the residue is a quality/coverage gap, not a red test.
+   - `prd.json` story → `status: done`, `notes: "<n> open findings at cap: <severities>"`.
+   - `review-result.json` survivors → `state: "open-at-cap"`.
+   - Append each to `tasks/<id>/followups.json` ([schema](../../shared/skills/e2e-engineering/schemas/followups.json.md)); `suggestedPriority` = 1 if ANY open finding is Critical, else 3.
+   - NEVER write `queue.json` — followups reach the queue via [triage](../../shared/skills/e2e-engineering/impl/triage.md) at QA sign-off (ADR 0017 writer table intact).
+   - Review-driven slice `blocked` is **RETIRED**. GATE 3 (red tests, 3 failed fixes) still blocks — unchanged.
+
+   Reviewers never fix or merge.
 
 4. **lint + compile** — orchestrator commands (not agents). Run project lint + the cached `compileCmd` (Step 2 — compile-only check, not a hardcoded build, not the package build), each bounded + non-interactive per [command-execution](../../shared/skills/e2e-engineering/impl/command-execution.md) (lint 3 min, compile 6 min). Long producers redirect to a log file (`> run.log 2>&1`) and read the tail after exit — NEVER pipe-to-filter (`Out-String`, `Select-Object -Last`, `head`, `tail` emit nothing until exit; a healthy slow build looks like a hang). Timeout = compile failure, logged `TIMEOUT <cmd> @<budget>s` — reconcile like any other failure, never re-run unchanged more than once. Reconcile failures before merge.
 5. **Merge** slice branch → Task branch. Orchestrator owns this merge (resolve conflicts, never discard work). `git merge slice/<story-id> --no-edit` — NEVER bare `merge` (default editor blocks a headless shell forever); `GIT_EDITOR=true` exported at Step 0. Remove worktree immediately (`ExitWorktree`) — life ends at merge.
@@ -132,7 +157,7 @@ Run [e2e-loop](../../shared/skills/e2e-engineering/impl/e2e-loop.md): author cro
 
 ## Step 6 — defer human-QA
 
-Write `tasks/<id>/qa-signoff.md` ([schema](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), caveman-ultra): manual test cases to walk, auto-verified ACs to eyeball, staged pending amendments. If gate 5 had failures, write `## Gate 5 Failures` section (each failing test/AC as a finding → triage entry for human to route into a new repair Task at QA sign-off). Do NOT run [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) — needs human. `/e2e-engineering` owns human review + replanning.
+Write `tasks/<id>/qa-signoff.md` ([schema](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), caveman-ultra): manual test cases to walk, auto-verified ACs to eyeball, staged pending amendments. If gate 5 had failures, write `## Gate 5 Failures` section (each failing test/AC as a finding → triage entry for human to route into a new repair Task at QA sign-off). Do NOT run [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) — needs human. `/e2e-engineering` owns human review + replanning. If any slice exhausted its bounce cap, write `## Followups` from `followups.json` ([schema](../../shared/skills/e2e-engineering/schemas/followups.json.md)) — plus `## Release Blockers` IFF an open finding is Critical (ADR 0035). Flight never queues them; triage does at sign-off.
 
 Also write `tasks/<id>/flow-retro.md` ([schema](../../shared/skills/e2e-engineering/schemas/flow-retro.md), caveman-ultra) from the Step-0 tally (ADR 0027): **§Local retro** (process metrics for the team — bounces by tier, blocked slices + cause, gate-5 failures, stalls, fan-out waves, rejected un-evidenced Criticals) + **§Skill-improvement candidates** (friction that looks like an e2e-engineering TOOL defect, for upstream). SEPARATE from qa-signoff.md — keeps tool-facing signal out of the project QA doc. The human routes §Skill-improvement upstream at QA sign-off (third lane), NOT into the client queue.
 
@@ -190,4 +215,12 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - git stash during flight — no stash ever; master artifacts committed at clean boundaries only.
 - Touching master after task branch created, except the two targeted `queue.json` commits (Step 1 lock + Step 5.1 pending-qa).
 - Cold-reading source files when `codebase-map.md` missing (stall instead — Step 2).
-- Dispatching full re-review wave for mechanical fixes (skip re-review per [[Three-tier bounce]]).
+- Merging with any finding `state: open` before the cap is exhausted (merge gate = zero open findings, Minor included — ADR 0035).
+- Skipping re-review after a mechanical fix (RETIRED — tier picks scope, never whether; no fix merges unread).
+- Binning an un-cited Critical/Important instead of spending a `finding-verifier` on it.
+- Verifying an un-cited Minor (dropped, no verifier spend — a Minor worth fixing is worth citing).
+- Re-raising a `dropped-refuted` finding in a later re-review (suppress by finding key; the loop cannot converge otherwise).
+- Resetting `bounce.rounds` on resume, or because a re-review surfaced new findings (absolute per slice, cap 4).
+- Marking a slice `blocked` on review findings (RETIRED — merge + followup at cap; `blocked` is GATE 3 / red tests only).
+- Writing `queue.json` for a followup (flight never creates queue entries — `followups.json` → triage).
+- Omitting `## Release Blockers` from `qa-signoff.md` when a Critical is open at cap.
