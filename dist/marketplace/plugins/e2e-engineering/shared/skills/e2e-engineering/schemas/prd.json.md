@@ -22,7 +22,7 @@ Structured state for one Task. Written and owned by orchestrator (sole writer). 
       "branch": "string — worktree branch for this slice",
       "testCases": ["test-case-id", "..."],
       "integration": "string — brownfield ownership/seam decision pinned by to-issues from ARCHITECTURE.md §1–§2. e.g. 'extend EnrollmentResource — completion endpoints, no new class'. Empty for greenfield / no ARCHITECTURE.md. Injected into slice sub-agent at fan-out.",
-      "notes": "string — free, e.g. blocked reason, gap-check escalation",
+      "notes": "string — free, e.g. blocked reason, gap-check escalation. Cap-exhaustion form (ADR 0035): '<n> open findings at cap: <severities>' — e.g. '2 open findings at cap: Critical, Minor'",
       "resultManifestPath": "string — path relative to Task root; null until impl fan-in. e.g. 'manifests/auth-login/slice-result.json'",
       "reviewManifestPath": "string — path relative to Task root; null until review fan-in. e.g. 'manifests/auth-login/review-result.json'"
     }
@@ -39,7 +39,7 @@ Sidecar files at Task root: `manifests/<story-id>/`. Written by orchestrator at 
 
 ## Invariants
 - **COMPLETE** = every story `status: "done"`. (Replaces Ralph's `passes: true`.)
-- `status` enum: exactly three values. `blocked` only after debug escalation (3 strikes + systematic-debugging failed).
+- `status` enum: exactly three values. `blocked` only after debug escalation (GATE 3 — 3 failed fixes + systematic-debugging failed, red tests). **Expert-review findings NEVER produce `blocked`** (ADR 0035): a slice that exhausts its 4 bounce rounds MERGES as `done`, its open findings recorded in `notes` and carried into `followups.json` ([schema](followups.json.md)).
 - `depends_on` edges encode tracer→schema→logic→api→ui ordering. Each feature sequential along chain; independent chains parallel.
 - **Ready set** = stories whose `depends_on` all `done` AND own `status` is `todo`.
 - Sub-agents NEVER write this file. Return slice result manifest; orchestrator reconciles + writes `status` at fan-in. Sidecar `status` fields (slice-result.json, review-result.json) are NEVER authoritative — prd.json is sole source of truth for story status.

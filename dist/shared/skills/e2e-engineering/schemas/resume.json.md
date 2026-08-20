@@ -16,6 +16,17 @@ Stale on resume is SAFE by construction: values are only written before an actio
   "reviewWave": [                    // in-flight reviewers, written BEFORE spawn
     { "sliceId": "...", "reviewerId": "backend-architect", "bundlePath": "manifests/<id>/review-bundle.json" }
   ],
+  "bounce": {                        // review convergence loop state for the slice in flight (ADR 0035)
+    "sliceId": "repair-webhook-source-ip-review-findings",
+    "rounds": 2,                     // bounce rounds SPENT. Absolute per slice. NEVER reset.
+    "cap": 4
+  },
+  "verifyWave": [                    // in-flight finding-verifiers, written BEFORE spawn
+    { "sliceId": "...", "findingId": "ac-3-no-real-stack-test", "verifierId": "finding-verifier" }
+  ],
+  "suppressed": [                    // dropped-refuted finding keys for the slice in flight
+    "Critical|src/Webhook.java:88|9f2c1a7e"
+  ],
   "worktrees": [".claude/worktrees/slice-webhook-type-routing"],
   "stackState": "up",                // up | down | unknown
   "teardownOwed": false,             // true → run down -v FIRST on resume
@@ -34,3 +45,7 @@ Stale on resume is SAFE by construction: values are only written before an actio
 - **Fields stay minimal.** Pointers only — shas, ids, paths, counts. No summaries, no learnings (those live in `progress.txt`).
 - **Reconcile on resume:** `dispatched[]` entry with no manifest/sidecar on disk → follow the committed-but-unrecorded path (branch ahead → treat head as result; zero commits → reset to `todo`). `teardownOwed=true` → teardown first.
 - **Delete or reset at task close** (with `progress.txt` + `prd.json` cleanup). Never carry into the next Task.
+- **`bounce.rounds` is DURABLE and never reset** (ADR 0035). Not on resume, and not when a re-review surfaces brand-new findings — the counter is absolute per slice. Losing it restarts the count and the slice churns unbounded; same failure class as `gate5Strikes`. Write-ahead before every bounce dispatch.
+- **`verifyWave[]` written BEFORE verifier dispatch.** On resume, an entry with no `verification` recorded in that slice's `review-result.json` → re-dispatch that verifier ONCE; still nothing → record `inconclusive`, which counts as `refuted`.
+- **`suppressed[]` holds `dropped-refuted` finding keys** for the slice in flight, formatted `"<severity>|<location>|<first 8 hex of sha1(message)>"`. A later re-review may NOT re-raise a suppressed finding — without this the convergence loop never terminates. Cleared when the slice merges.
+- `bounce`, `verifyWave[]`, and `suppressed[]` are per-slice and scoped to the slice currently in flight. Reset all three when the next slice enters its review wave.
