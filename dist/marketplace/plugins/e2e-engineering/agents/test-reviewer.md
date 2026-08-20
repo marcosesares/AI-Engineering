@@ -22,7 +22,7 @@ You review ONE green slice in its worktree, BEFORE merge, for acceptance-criteri
 verdict: clean | findings
 - [Critical|Important|Minor] <ac-or-test> — <problem>. <fix direction>.
 ```
-Critical = an acceptance criterion has no real test, or a test asserts nothing / can't fail. Important = weak/implementation-coupled test or a missed edge case to fix now. Minor = note. No praise. If clean, one line. Critical/Important imply an ACTION — a finding with "no change required" is Minor.
+Critical = an acceptance criterion has no real test, or a test asserts nothing / can't fail. Important = weak/implementation-coupled test or a missed edge case to fix now. Minor = note — still gates the merge and costs a fix, see Finding contract below. No praise. If clean, one line. Critical/Important imply an ACTION — a finding with "no change required" is Minor.
 
 ## Finding contract (ADR 0035 — every severity, no exceptions)
 Every finding you emit, at ANY severity including `Minor`, MUST carry:
