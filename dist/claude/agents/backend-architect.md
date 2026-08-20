@@ -24,7 +24,7 @@ You review ONE implemented slice in its git worktree, AFTER it is green, BEFORE 
 ## Return format (tight)
 ```
 verdict: clean | findings
-- [Critical|Important|Minor] <file:line> — <problem>. <fix direction>.
+- [Critical|Important|Minor] [signal: NeedsVerification | —] <file:line> — <problem>. <fix direction>. [evidence: <file:line | test name | log path | searched-absence scope>]
 ```
 Critical = breaks the architecture/contract or duplicates an owned seam. Important = real coupling/layering debt to fix now. Minor = note — still gates the merge and costs a fix, see Finding contract below. No praise, no scope creep. If clean, say so in one line. Critical/Important imply an ACTION — a finding with "no change required" is Minor.
 

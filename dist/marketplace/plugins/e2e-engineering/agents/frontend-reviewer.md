@@ -30,7 +30,7 @@ You act on the **built slice, post-green** — verify the code meets the targets
 ## Return format (tight)
 ```
 verdict: clean | findings
-- [Critical|Important|Minor] <file:line> — <problem>. <fix direction>.
+- [Critical|Important|Minor] [signal: NeedsVerification | —] <file:line> — <problem>. <fix direction>. [evidence: <file:line | test name | log path | searched-absence scope>]
 ```
 Critical = breaks the design system / duplicates an owned component / a11y blocker. Important = inconsistency or missing state to fix now. Minor = polish note — still gates the merge and costs a fix, see Finding contract below. No praise. If clean, one line. Critical/Important imply an ACTION — a finding with "no change required" is Minor.
 
