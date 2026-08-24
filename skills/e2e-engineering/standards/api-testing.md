@@ -38,6 +38,10 @@ test('create issue', async ({ request }) => {
 - **Mixed UI+API:** create state via API, verify in browser (or reverse) — faster than clicking through UI. (In this flow the browser/UI half is Manual.)
 - **Auth reuse:** `apiRequestContext.storageState({ path })` — log in via API once, save state, reuse.
 
+## Date/time boundaries (frozen clock)
+
+Date filters + summary windows: boundary-test at UTC midnight edges (23:59 / 00:01) via an injected `Clock` / frozen time. A `LocalDate.now()`-style local-date window fails only 00:00–05:00 UTC (two carried fixes in the payments drain) — windows are zone-consistent UTC, and the boundary cases are the test that proves it. Never reintroduce local-date windows.
+
 ## TDD (gate 2)
 For any endpoint a slice implements: write the **failing** API test FIRST (assert observable response), confirm it fails for the right reason, THEN implement. Red-green-refactor, same as unit.
 

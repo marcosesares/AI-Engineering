@@ -60,6 +60,7 @@ Need a background service (the gate-5 stack) → start it detached (`-d`), then 
 | Worker compile / test (tdd) | failed fix → GATE 3 strike; `findings[]` `type:blocker` carrying cmd + budget |
 | Orchestrator lint/compile (flight Step 3.4) | compile failure → normal pre-merge reconcile; cap reached → slice `blocked` |
 | Gate-5 stack-up or suite | gate-5 failure → `gate5Strikes` + `gate5FailureIds[]` → `partial` → `pending-qa` (ADR 0025). NOT a stall, NOT `blocked` |
+| Background job killed by watchdog | same routing as its phase timeout (gate-5 strike / worker gate-3 strike / teardown WARN) — never "it just stopped" |
 | Teardown (`down -v`) | WARN in `progress.txt`; never block the gate on teardown |
 
 Record every timeout in `progress.txt`: `TIMEOUT <cmd> @<budget>s`.
@@ -79,6 +80,16 @@ Record every timeout in `progress.txt`: `TIMEOUT <cmd> @<budget>s`.
 ## 8. Gradle daemon contention — NEVER `--stop` mid-flight
 - Workers run `--no-daemon` (§2). NEVER `./gradlew --stop` during a flight — it sweeps machine-wide forked single-use daemons while OTHER parallel work is using them. Contention control is per-worktree isolation, not daemon killing. (An older postmortem recommended `--stop` as worker bootstrap — superseded, banned: this contract wins.)
 
+## 9. Background jobs stay bounded — orchestrator watchdog (ADR 0036)
+
+A runtime background flag (`run_in_background`, `Start-Job`, detached spawn) bypasses tool-level timeouts — the job is UNBOUNDED unless the orchestrator bounds it. The payments drain proved the cost: a wedged background suite ran silent 4.7h (log quiet, 0 XML, zombie 1.6GB JVM) until a human killed it. Every background/detached job therefore gets a watchdog:
+
+1. **Bounded poll** — poll completion in a capped loop (attempts × interval = the phase budget). NEVER wait unbounded on a job handle.
+2. **Hard deadline** — deadline reached → `job_kill`. A killed job is a TIMEOUT, not "finished": route per §4.
+3. **Silence heuristic** — log last-write > 10 min while status = running → hung. Kill NOW, record `TIMEOUT <cmd> @<budget>s (silent)`, don't wait for the deadline.
+4. **Orphan sweep after every kill** — the run's processes may survive the kill. Stop them by targeted PID (test JVMs etc., per §4.1/§4.1b) — NEVER `gradlew --stop` mid-flight (§8).
+5. **Record** — log the kill in `progress.txt`; bump the flow-retro watchdog counter.
+
 ## Red flags (stop)
 - Emitting a shell command with no timeout wrapper and no runtime timeout (ADR 0033 — a hung shell is a runaway neither fan-out nor inline-STOP catches).
 - `docker compose up` without `-d`, or attaching to logs to "watch it come up".
@@ -93,3 +104,6 @@ Record every timeout in `progress.txt`: `TIMEOUT <cmd> @<budget>s`.
 - Retrying a timed-out command unchanged more than once.
 - Treating a gate-5 timeout as `blocked` (it is a gate-5 failure → `pending-qa`, ADR 0025).
 - Leaving a detached stack up after the gate — teardown is still owed.
+- Unbounded wait on a background job (no poll cap, no deadline, no `job_kill`) — a wedged job is invisible and billable forever (§9).
+- Leaving a killed run's orphan processes up — targeted-PID sweep after every kill (§9).
+- Committing a full log as evidence — evidence = counts + ≤20-line excerpts; full logs stay gitignored on disk (ADR 0036).
