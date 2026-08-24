@@ -9,6 +9,8 @@
 > - **Gate 4 RETIRED, gate 5 ACTIVE (rescoped) — ADR 0024 (Fork Y).** Automate unit (Vitest) + API/integration (Playwright `request`, red-green under gate 2) ONLY; UI E2E is NOT automated (disposition Manual → human-QA walk). Gate 5 = full unit+API suite run + AC-checklist-vs-code, in self-review, no live-UI exercise. Hard-gate set = {1,2,3,5}.
 > - **Gate 5 failures → pending-qa (NOT blocked) — ADR 0025.** Red suite or unmapped AC records failures in `qa-signoff.md ## Gate 5 Failures`; Task proceeds to `pending-qa`; human routes each to a repair Task at QA sign-off. `blocked` reserved for Gate 3 exhaustion only. Gate 2: mocked unit tests do NOT satisfy real-stack requirement; `test-reviewer` flags Critical.
 > - **map-codebase §4.1 migration question (brownfield).** §4.1 absent → detect test pattern + ask user to switch to skill's real-stack standard → seed §4.1. §4.1 present → skip detection entirely (no redundant scan).
+> - **ADR 0036 — gate-5 runtime safety.** Every background/detached job gets an orchestrator [[Watchdog]] (bounded poll + deadline + `job_kill` + 10-min silence heuristic + orphan sweep); committed evidence = counts + ≤20-line excerpts only ([[Evidence excerpts]]); JVM suites ~80+ classes need a test-fork heap rule (§4.1/§4.1b or the init script — Gradle's 512MB default OOMs); verdicts read test-result XML only after `BUILD SUCCESSFUL` (stale-XML trap); a [[Carrier API smoke]] runs merged carrier specs early; `ARCHITECTURE.md §4.1b` is the first-class hook for repo-specific execution rules.
+> - **ADR 0037 — degraded dispatch + worker contract.** Zero-commit impl wave → [[Chunk-driver mode]] (small chunks + orchestrator-runs-tests; Gate 2 = test-first chunk); workers self-compile before every commit; empty spawn messages self-brief from the journaled manifest (tdd.md §0); re-review rounds halve to ≤8 tool calls (open findings + fix diff).
 > - See [ADR 0022](docs/adr/0022-flight-one-task-per-spawn-no-loop-no-checkpoint.md) + [prototype/e2e-flight-process/design.md](prototype/e2e-flight-process/design.md).
 
 ## Language
@@ -232,6 +234,18 @@ _Avoid_: putting `NeedsVerification` or `Unsubstantiated` in the severity enum (
 
 **Followup record**: `tasks/<id>/followups.json` — carry-forward for findings still `open` when a slice exhausted its 4 bounce rounds (ADR 0035). One entry per finding with its cite and a per-entry `suggestedPriority` (`Critical` → 1, `Important`/`Minor` → 3, so a file may hold a mix). Mirrored into `qa-signoff.md` as `## Followups`, plus `## Release Blockers` iff a `Critical` is open. Flight NEVER writes `queue.json` from it — triage intake source #4 creates the Task at QA sign-off, preserving ADR 0017's writer table. Distinct from `## Gate 5 Failures` (task-level, ADR 0025) and from human-authored QA findings.
 _Avoid_: flight creating the queue entry itself; closing a sign-off with un-routed entries; conflating it with Gate 5 Failures
+
+**Watchdog**: Orchestrator-side guard on every background/detached job (ADR 0036). Bounded poll loop (attempts × interval = phase budget) + hard deadline → `job_kill` + **silence heuristic** (log last-write > 10 min while running = hung → kill + `TIMEOUT … (silent)`) + orphan-process sweep by targeted PID after a kill (never `gradlew --stop`). A killed job routes as its phase timeout per command-execution §4. Born from the payments drain's 4.7h wedged background suite.
+_Avoid_: unbounded waits on job handles; treating a killed job as "finished"; leaving the killed run's processes up
+
+**Chunk-driver mode**: First-class degraded dispatch mode (ADR 0037) for runtimes whose write-capable workers complete ~1 tool call/round. Trigger = impl wave returns zero commits/manifests after its budget. Worker writes ONE small chunk (≤1 file, one AC) + self-compiles; the orchestrator runs the focused tests per chunk. Gate 2 preserved — chunk 1 IS the failing test (orchestrator confirms red) before the impl chunk. Review wave unchanged. Fan-out with a smaller unit — never a license to inline.
+_Avoid_: skipping the degrade after a zero-commit wave; letting workers run tests in this mode (the stall it exists to avoid)
+
+**Carrier API smoke**: Post-merge, pre-next-wave run of a carrier's new/changed Playwright API spec files against a freshly rebuilt stack (ADR 0036). Catches blind-spec expectation bugs (stale 200-vs-201) and db-cleanup defects at merge time instead of the final gate. `ARCHITECTURE.md §4.1` may declare the rebuild too heavy → WARN + defer to gate 5. The gate-5 full suite is unchanged.
+_Avoid_: skipping it for a spec-touching carrier without a §4.1 defer; treating it as a replacement for the gate-5 suite
+
+**Evidence excerpts**: Committed evidence = counts (XML/`BUILD SUCCESSFUL` verdicts) + ≤20-line log excerpts (ADR 0036). Full logs stay on disk, gitignored (`*.log`), deleted at worktree removal. `evidencePaths[]` point at counts/excerpt files.
+_Avoid_: committing full logs (two 179KB copies shipped then removed, bf095e3)
 
 **Sole writer**: Only the orchestrator writes prd.json + progress.txt. Subagents return a summary and never touch shared state. Preserves single-writer invariant and keeps progress.txt genuinely append-only even under parallelism.
 
