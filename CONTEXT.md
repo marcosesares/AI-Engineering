@@ -11,6 +11,7 @@
 > - **map-codebase §4.1 migration question (brownfield).** §4.1 absent → detect test pattern + ask user to switch to skill's real-stack standard → seed §4.1. §4.1 present → skip detection entirely (no redundant scan).
 > - **ADR 0036 — gate-5 runtime safety.** Every background/detached job gets an orchestrator [[Watchdog]] (bounded poll + deadline + `job_kill` + 10-min silence heuristic + orphan sweep); committed evidence = counts + ≤20-line excerpts only ([[Evidence excerpts]]); JVM suites ~80+ classes need a test-fork heap rule (§4.1/§4.1b or the init script — Gradle's 512MB default OOMs); verdicts read test-result XML only after `BUILD SUCCESSFUL` (stale-XML trap); a [[Carrier API smoke]] runs merged carrier specs early; `ARCHITECTURE.md §4.1b` is the first-class hook for repo-specific execution rules.
 > - **ADR 0037 — degraded dispatch + worker contract.** Zero-commit impl wave → [[Chunk-driver mode]] (small chunks + orchestrator-runs-tests; Gate 2 = test-first chunk); workers self-compile before every commit; empty spawn messages self-brief from the journaled manifest (tdd.md §0); re-review rounds halve to ≤8 tool calls (open findings + fix diff).
+> - **ADR 0038 — DSH runtime.** DeepSeek Harness is a first-class runtime: Step-0 tool-shape detection (`spawn_agent` absent + `subagent`/`pwsh`/`job_*` present → DSH mode, never `fanout-unavailable`); fan-out = background `subagent` dispatch per `impl/dsh-runtime.md`. **Measured:** DSH background jobs IGNORE `timeoutMs` (60s sleep/20s budget → 60.8s; 900s sleep/720s budget → completed) → the [[Watchdog]] is the ONLY background bound and its poll loop persists inside the turn (output-growth check). Write-capability probe → `<e2e-stall reason="sandbox-write-denied">`. DSH budget table + DeepSeek model-efficiency contract (artifact-driven, non-busy waits, goal tools).
 > - See [ADR 0022](docs/adr/0022-flight-one-task-per-spawn-no-loop-no-checkpoint.md) + [prototype/e2e-flight-process/design.md](prototype/e2e-flight-process/design.md).
 
 ## Language
@@ -246,6 +247,9 @@ _Avoid_: skipping it for a spec-touching carrier without a §4.1 defer; treating
 
 **Evidence excerpts**: Committed evidence = counts (XML/`BUILD SUCCESSFUL` verdicts) + ≤20-line log excerpts (ADR 0036). Full logs stay on disk, gitignored (`*.log`), deleted at worktree removal. `evidencePaths[]` point at counts/excerpt files.
 _Avoid_: committing full logs (two 179KB copies shipped then removed, bf095e3)
+
+**DSH runtime**: DeepSeek Harness execution profile (ADR 0038). Fan-out = background `subagent` dispatch (tool-shape detection at Step 0); foreground `pwsh timeoutMs` is the native bound, background jobs IGNORE it (watchdog-only — measured); read-only sandbox = PowerShell ConstrainedLanguage; a write denial is policy → `sandbox-write-denied` stall, never a retry loop.
+_Avoid_: stalling `fanout-unavailable` when `subagent` exists; budgeting a background job with `timeoutMs`; stopping the watchdog loop at a `running` read
 
 **Sole writer**: Only the orchestrator writes prd.json + progress.txt. Subagents return a summary and never touch shared state. Preserves single-writer invariant and keeps progress.txt genuinely append-only even under parallelism.
 

@@ -89,6 +89,8 @@ A runtime background flag (`run_in_background`, `Start-Job`, detached spawn) byp
 3. **Silence heuristic** — log last-write > 10 min while status = running → hung. Kill NOW, record `TIMEOUT <cmd> @<budget>s (silent)`, don't wait for the deadline.
 4. **Orphan sweep after every kill** — the run's processes may survive the kill. Stop them by targeted PID (test JVMs etc., per §4.1/§4.1b) — NEVER `gradlew --stop` mid-flight (§8).
 5. **Record** — log the kill in `progress.txt`; bump the flow-retro watchdog counter.
+6. **Runtime background flags VOID timeout budgets (DSH, ADR 0038).** `run_in_background` ignores `timeoutMs` entirely — measured: a 60s sleep under a 20s budget ran 60.8s; a 900s sleep under a 720s budget completed. A background job's ONLY bound is this watchdog. Never "budget" a background job with a timeout number.
+7. **The watchdog loop persists INSIDE the turn.** Bounded `job_output({ wait: true })` reads in a loop; track output GROWTH between reads; status `running` + zero growth > 10 min → kill + `TIMEOUT <cmd> @<budget>s (silent)`. A poll that returns `running` and then stops watching is NOT a watchdog — the payments wedge's last poll was 02:35; nothing read again until a human killed it at 07:12 (4h47m).
 
 ## Red flags (stop)
 - Emitting a shell command with no timeout wrapper and no runtime timeout (ADR 0033 — a hung shell is a runaway neither fan-out nor inline-STOP catches).
@@ -105,5 +107,7 @@ A runtime background flag (`run_in_background`, `Start-Job`, detached spawn) byp
 - Treating a gate-5 timeout as `blocked` (it is a gate-5 failure → `pending-qa`, ADR 0025).
 - Leaving a detached stack up after the gate — teardown is still owed.
 - Unbounded wait on a background job (no poll cap, no deadline, no `job_kill`) — a wedged job is invisible and billable forever (§9).
+- Treating a background job's `timeoutMs` as a bound (DSH ignores it — the watchdog is the only brake; ADR 0038).
+- Ending the watchdog poll loop when a read returns `running` (the loop persists in-turn — bounded wait + output-growth check; §9 rule 7).
 - Leaving a killed run's orphan processes up — targeted-PID sweep after every kill (§9).
 - Committing a full log as evidence — evidence = counts + ≤20-line excerpts; full logs stay gitignored on disk (ADR 0036).
