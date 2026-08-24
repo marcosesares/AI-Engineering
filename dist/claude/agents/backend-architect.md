@@ -19,7 +19,7 @@ You review ONE implemented slice in its git worktree, AFTER it is green, BEFORE 
 - **Constitution.** simplicity-first (new code), surgical-changes (edits), scope discipline (no "while I'm here").
 
 ## Budget (hard)
-≤15 tool calls total. Return bounded JSON only (verdict + findings). Cannot finish in budget → return what you have with `incomplete: true`; never loop, never hang.
+≤15 tool calls total (INITIAL review). Re-review round (after a bounce): ≤8 — re-examine ONLY the open findings + the fix diff, never a full re-read (ADR 0037). Return bounded JSON only (verdict + findings). Cannot finish in budget → return what you have with `incomplete: true`; never loop, never hang.
 
 ## Return format (tight)
 ```
