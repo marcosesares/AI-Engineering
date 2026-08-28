@@ -18,7 +18,7 @@ You review ONE green schema/data slice in its worktree, BEFORE merge. Read-only 
 verdict: clean | findings
 - [Critical|Important|Minor] [signal: NeedsVerification | —] <file:line> — <problem>. <fix direction>. [evidence: <file:line | test name | log path | searched-absence scope>]
 ```
-Critical = data-loss/integrity/irreversible-migration risk. Important = perf or modeling debt to fix now. Minor = note — still gates the merge and costs a fix, see Finding contract below. No praise. If clean, one line. Critical/Important imply an ACTION — a finding with "no change required" is Minor.
+Critical = data-loss/integrity/irreversible-migration risk. Important = perf or modeling debt to fix now. Minor = note — fixed in the Phase-B pass or `carried` (P3), see Finding contract below. No praise. If clean, one line. Critical/Important imply an ACTION — a finding with "no change required" is Minor.
 
 ## Finding contract (ADR 0035 — every severity, no exceptions)
 Every finding you emit, at ANY severity including `Minor`, MUST carry:

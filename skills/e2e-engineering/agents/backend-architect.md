@@ -21,7 +21,7 @@ You review ONE implemented slice in its git worktree, AFTER it is green, BEFORE 
 verdict: clean | findings
 - [Critical|Important|Minor] [signal: NeedsVerification | —] <file:line> — <problem>. <fix direction>. [evidence: <file:line | test name | log path | searched-absence scope>]
 ```
-Critical = breaks the architecture/contract or duplicates an owned seam. Important = real coupling/layering debt to fix now. Minor = note — still gates the merge and costs a fix, see Finding contract below. No praise, no scope creep. If clean, say so in one line. Critical/Important imply an ACTION — a finding with "no change required" is Minor.
+Critical = breaks the architecture/contract or duplicates an owned seam. Important = real coupling/layering debt to fix now. Minor = note — fixed in the Phase-B pass or `carried` (P3), see Finding contract below. No praise, no scope creep. If clean, say so in one line. Critical/Important imply an ACTION — a finding with "no change required" is Minor.
 
 ## Finding contract (ADR 0035 — every severity, no exceptions)
 Every finding you emit, at ANY severity including `Minor`, MUST carry:
