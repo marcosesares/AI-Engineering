@@ -22,7 +22,19 @@ function Invoke-Bounded {
     )
     $errLog = "$Log.err"
     Remove-Item -Path $Log, $errLog -ErrorAction SilentlyContinue
-    $p = Start-Process -FilePath $Exe -ArgumentList $Args -WorkingDirectory $Dir -NoNewWindow -PassThru -RedirectStandardOutput $Log -RedirectStandardError $errLog
+    # Build ONE pre-quoted command string (space-separated; whitespace args wrapped in
+    # quotes, embedded quotes backslash-escaped) so space-bearing paths survive.
+    if ([System.IO.Path]::GetFileName($Exe) -eq 'cmd.exe') {
+        $payload = ($Args | Select-Object -Skip 1 | ForEach-Object {
+            if ($_ -match '\s' -or $_ -eq '') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
+        }) -join ' '
+        $quoted = '/c "' + $payload + '"'
+    } else {
+        $quoted = ($Args | ForEach-Object {
+            if ($_ -match '\s' -or $_ -eq '') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
+        }) -join ' '
+    }
+    $p = Start-Process -FilePath $Exe -ArgumentList $quoted -WorkingDirectory $Dir -NoNewWindow -PassThru -RedirectStandardOutput $Log -RedirectStandardError $errLog
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     while (-not $p.HasExited) {
         Start-Sleep -Milliseconds 250
@@ -49,6 +61,29 @@ $repoRoot = $repoRoot.Trim()
 $worktree = (Get-Location).Path
 
 # (1) claim a port from resume.json ports.nextFree (write-ahead increment) when -Port is empty.
+# The claim is serialized via an exclusive lock file so parallel slices cannot collide.
+function Acquire-PortLock {
+    param(
+        [Parameter(Mandatory = $true)][string]$ResumePath,
+        [int]$TimeoutSec = 30
+    )
+    $lockPath = Join-Path (Split-Path -Parent $ResumePath) 'ports.lock'
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+        try {
+            $fs = [System.IO.File]::Open($lockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+            return $fs
+        }
+        catch {
+            if ($sw.Elapsed.TotalSeconds -ge $TimeoutSec) {
+                Write-Output ([pscustomobject]@{ ok = $false; verdict = 'port-lock-timeout'; counts = @{ tests = 0; failures = 0; errors = 0; skipped = 0 }; errors = @('could not acquire ports.lock within ' + $TimeoutSec + 's') } | ConvertTo-Json -Compress -Depth 10)
+                exit 1
+            }
+            Start-Sleep -Milliseconds 250
+        }
+    }
+}
+
 $claimed = $false
 $resumePath = $null
 if ($Port -le 0) {
@@ -58,15 +93,21 @@ if ($Port -le 0) {
         Write-Output ([pscustomobject]@{ ok = $false; verdict = 'no-resume-no-port'; counts = @{ tests = 0; failures = 0; errors = 0; skipped = 0 }; errors = @('no resume.json found and -Port not given') } | ConvertTo-Json -Compress -Depth 10)
         exit 1
     }
-    $resume = Get-Content -LiteralPath $resumePath -Raw | ConvertFrom-Json
-    if (-not $resume.ports -or $null -eq $resume.ports.nextFree) {
-        Write-Output ([pscustomobject]@{ ok = $false; verdict = 'no-ports-ledger'; counts = @{ tests = 0; failures = 0; errors = 0; skipped = 0 }; errors = @('resume.json has no ports.nextFree') } | ConvertTo-Json -Compress -Depth 10)
-        exit 1
+    $lockFs = Acquire-PortLock -ResumePath $resumePath
+    try {
+        $resume = Get-Content -LiteralPath $resumePath -Raw | ConvertFrom-Json
+        if (-not $resume.ports -or $null -eq $resume.ports.nextFree) {
+            Write-Output ([pscustomobject]@{ ok = $false; verdict = 'no-ports-ledger'; counts = @{ tests = 0; failures = 0; errors = 0; skipped = 0 }; errors = @('resume.json has no ports.nextFree') } | ConvertTo-Json -Compress -Depth 10)
+            exit 1
+        }
+        $Port = [int]$resume.ports.nextFree
+        $resume.ports.nextFree = $Port + 1
+        $resume | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $resumePath -Encoding utf8
+        $claimed = $true
     }
-    $Port = [int]$resume.ports.nextFree
-    $claimed = $true
-    $resume.ports.nextFree = $Port + 1
-    $resume | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $resumePath -Encoding utf8
+    finally {
+        if ($lockFs) { $lockFs.Dispose() }
+    }
 }
 
 $env:TEST_PORT = [string]$Port
@@ -89,12 +130,19 @@ else {
 }
 
 # (3) release the port (only if we claimed and the ledger is still exactly one ahead).
+# Same exclusive lock as the claim — the read-check-write is one atomic section.
 if ($claimed -and $resumePath) {
     try {
-        $resume = Get-Content -LiteralPath $resumePath -Raw | ConvertFrom-Json
-        if ([int]$resume.ports.nextFree -eq ($Port + 1)) {
-            $resume.ports.nextFree = $Port
-            $resume | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $resumePath -Encoding utf8
+        $lockFs = Acquire-PortLock -ResumePath $resumePath
+        try {
+            $resume = Get-Content -LiteralPath $resumePath -Raw | ConvertFrom-Json
+            if ([int]$resume.ports.nextFree -eq ($Port + 1)) {
+                $resume.ports.nextFree = $Port
+                $resume | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $resumePath -Encoding utf8
+            }
+        }
+        finally {
+            if ($lockFs) { $lockFs.Dispose() }
         }
     }
     catch {}

@@ -30,7 +30,9 @@ if ($reviewDir -and (Test-Path -LiteralPath $reviewDir)) {
         try {
             $obj = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json
             if (-not $sliceId -and $obj.sliceId) { $sliceId = [string]$obj.sliceId }
-            $reviews += [pscustomobject]@{ reviewerId = [string]$obj.reviewerId; findings = @($obj.findings) }
+            $reviewerId = [string]$obj.reviewerId
+            if (-not $reviewerId) { $reviewerId = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
+            $reviews += [pscustomobject]@{ reviewerId = $reviewerId; findings = @($obj.findings) }
         }
         catch {}
     }

@@ -20,7 +20,19 @@ function Invoke-Bounded {
     )
     $errLog = "$Log.err"
     Remove-Item -Path $Log, $errLog -ErrorAction SilentlyContinue
-    $p = Start-Process -FilePath $Exe -ArgumentList $Args -WorkingDirectory $Dir -NoNewWindow -PassThru -RedirectStandardOutput $Log -RedirectStandardError $errLog
+    # Build ONE pre-quoted command string (space-separated; whitespace args wrapped in
+    # quotes, embedded quotes backslash-escaped) so space-bearing paths survive.
+    if ([System.IO.Path]::GetFileName($Exe) -eq 'cmd.exe') {
+        $payload = ($Args | Select-Object -Skip 1 | ForEach-Object {
+            if ($_ -match '\s' -or $_ -eq '') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
+        }) -join ' '
+        $quoted = '/c "' + $payload + '"'
+    } else {
+        $quoted = ($Args | ForEach-Object {
+            if ($_ -match '\s' -or $_ -eq '') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
+        }) -join ' '
+    }
+    $p = Start-Process -FilePath $Exe -ArgumentList $quoted -WorkingDirectory $Dir -NoNewWindow -PassThru -RedirectStandardOutput $Log -RedirectStandardError $errLog
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     while (-not $p.HasExited) {
         Start-Sleep -Milliseconds 250
