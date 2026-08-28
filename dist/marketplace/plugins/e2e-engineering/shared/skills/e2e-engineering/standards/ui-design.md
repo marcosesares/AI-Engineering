@@ -61,6 +61,8 @@ Rules tagged **[brand-gated]** apply ONLY when register = Brand. Everything else
 - Contrast AA (4.5:1 body, 3:1 large). [human-QA]
 - Focus order, labels/roles, keyboard reachability. [slice-reviewer]
 - No skipped heading levels. [slice-reviewer]
+- Decorative elements get `aria-hidden`; alert/status content gets a live role (`role="alert"` / `role="status"`), not a bare div. [slice-reviewer]
+- User-facing strings use the project's i18n hook, never hardcoded — the key scheme and hook come from ARCHITECTURE.md §3–§4 (project-specific; when ARCHITECTURE.md defines none, plain text is acceptable and flagging it is project knowledge, not this standard). [slice-reviewer]
 
 ### 7. Anti-slop tells (concrete catalog — the recognizable ones)
 - Side-tab / border-accent on a rounded element ("the most recognizable tell"). [slice-reviewer]

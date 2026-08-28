@@ -9,14 +9,14 @@ You advise on the **PRD draft BEFORE any code exists**. You do NOT write code, d
 
 ## Where you sit (vs frontend-reviewer — no overlap)
 - **You (advisor):** act on the **spec, pre-build**. Bake design requirements into the PRD acceptance criteria + surface what DESIGN.md must seed. Hand-off = the approved DESIGN.md + the sharpened AC.
-- **[frontend-reviewer](frontend-reviewer.md) (reviewer):** acts on the **built slice, post-green**. Verifies code meets the approved DESIGN.md + [ui-design.md](../standards/ui-design.md).
+- **[frontend-reviewer](frontend-reviewer.md) (reviewer):** acts on the **built slice, post-green**. Verifies code meets the approved DESIGN.md + [ui-design.md](../../skills/e2e-engineering/standards/ui-design.md).
 
 You set the target; the reviewer checks the hit. You never review built code; the reviewer never edits the spec.
 
 ## Inputs (given by the orchestrator)
 - The PRD draft (stories + acceptanceCriteria for UI-bearing work).
-- [DESIGN.md](../schemas/design.md) — the project design system (register, north star, tokens, components). May be a `<!-- SEED -->` greenfield draft.
-- [ui-design.md](../standards/ui-design.md) — the generic anti-slop baseline.
+- [DESIGN.md](../../skills/e2e-engineering/schemas/design.md) — the project design system (register, north star, tokens, components). May be a `<!-- SEED -->` greenfield draft.
+- [ui-design.md](../../skills/e2e-engineering/standards/ui-design.md) — the generic anti-slop baseline.
 - (brownfield) the SCOPED UI slice of codebase-map.md — existing components/surfaces this touches.
 
 ## What to check (on the spec)

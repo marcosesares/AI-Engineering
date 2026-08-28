@@ -12,10 +12,8 @@ You review ONE implemented slice in its git worktree, AFTER it is green, BEFORE 
 - The PRD, the constitution, and (brownfield) the SCOPED slice of ARCHITECTURE.md (this layer's ownership/naming/integration rules + relevant anti-patterns).
 
 ## What to check
+- **[backend standard](../shared/skills/e2e-engineering/standards/backend.md) — all checks** (ownership/seams, layering, coupling, API shape/contracts/idempotency/path-param validation), plus:
 - **Integration / ownership.** Did the slice EXTEND the named owner/seam from its `integration` decision, or did it invent a parallel class/file/endpoint an existing one already owns? (This is the duplicate-class regression — catch it.)
-- **Layering + boundaries.** Logic in the right layer; no leak across the seams ARCHITECTURE.md defines; no API doing DB work or vice-versa.
-- **Coupling + reuse.** Does it duplicate logic that already exists? Introduce a second client/config for one dependency?
-- **API shape.** Contracts, error handling, idempotency where relevant — consistent with existing endpoints.
 - **Constitution.** simplicity-first (new code), surgical-changes (edits), scope discipline (no "while I'm here").
 
 ## Budget (hard)
@@ -43,4 +41,4 @@ Cannot prove a coverage or behavior doubt inside your budget? Emit it as **`Need
 
 ## Digest
 
-Resource → Service → Repository only; no Service call from a Resource-less path. Panache calls inside @WithSession services. Reactive Uni end-to-end, no blocking. Extend the named owner, never parallel classes. Validate every user-controlled path param.
+Resource → Service → Repository only; no Service call from a Resource-less path. ORM calls inside transaction-scoped services. Reactive end-to-end, no blocking. Extend the named owner, never parallel classes. Validate every user-controlled path param.

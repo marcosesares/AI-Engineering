@@ -58,7 +58,16 @@ tools: $toolsStr
 ---
 
 "@
-    $claudeContent  = $claudeFrontmatter + $specBody
+    # Canonical spec bodies link via agent-relative paths (../standards/, ../schemas/)
+    # which are correct inside skills/e2e-engineering/agents/ but break once the
+    # body is copied to .claude/agents/. Rewrite those to repo-root-relative paths
+    # that resolve from .claude/agents/. Same-dir agent-to-agent links (foo.md)
+    # stay as-is — the siblings exist in .claude/agents/ too.
+    $wrapperBody = $specBody `
+        -replace '\]\(\.\./standards/', '](../../skills/e2e-engineering/standards/' `
+        -replace '\]\(\.\./schemas/',   '](../../skills/e2e-engineering/schemas/' `
+        -replace '\]\(\.\./constitution\.md\)', '](../../skills/e2e-engineering/constitution.md)'
+    $claudeContent  = $claudeFrontmatter + $wrapperBody
     $claudeOutPath  = Join-Path $claudeAgentsDir "$claudeName.md"
 
     if ($DryRun) {

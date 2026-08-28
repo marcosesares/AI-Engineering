@@ -68,6 +68,31 @@ function compareDirs(src, dst, label) {
   }
 }
 
+function compareDirsWithTransform(src, dst, label, transformFilesOnly = true, transform = (s) => s) {
+  if (!exists(src)) return fail(label + ": missing source " + rel(src));
+  if (!exists(dst)) return fail(label + ": missing dist " + rel(dst));
+
+  const srcFiles = listFiles(src).map((p) => slash(path.relative(src, p))).sort();
+  const dstFiles = listFiles(dst).map((p) => slash(path.relative(dst, p))).sort();
+  const all = new Set([...srcFiles, ...dstFiles]);
+
+  for (const file of [...all].sort()) {
+    const s = path.join(src, file);
+    const d = path.join(dst, file);
+    if (!exists(s)) {
+      fail(label + ": extra stale dist file " + rel(d));
+      continue;
+    }
+    if (!exists(d)) {
+      fail(label + ": missing dist file " + rel(d));
+      continue;
+    }
+    const isMarkdown = /\.(md|mdc)$/i.test(file);
+    if (isMarkdown && transform(read(s)) !== read(d)) fail(label + ": stale dist file " + rel(d));
+    else if (!isMarkdown && read(s) !== read(d)) fail(label + ": stale dist file " + rel(d));
+  }
+}
+
 function compareSkillDirs(srcRoot, dstRoot, names, label) {
   if (!exists(dstRoot)) return fail(label + ": missing dist " + rel(dstRoot));
 
@@ -199,7 +224,9 @@ function validateDistFresh() {
 
   const plugin = path.join(REPO, "dist/marketplace/plugins/e2e-engineering");
   compareSkillDirs(path.join(REPO, "skills"), path.join(plugin, "shared/skills"), SHARED_SKILLS, "marketplace shared skills");
-  compareDirs(path.join(REPO, ".claude/agents"), path.join(plugin, "agents"), "marketplace Claude agents");
+  compareDirsWithTransform(path.join(REPO, ".claude/agents"), path.join(plugin, "agents"), "marketplace Claude agents", true, (text) =>
+    text.split("](../../skills/e2e-engineering/").join("](../shared/skills/e2e-engineering/")
+  );
 
   for (const skillDir of TOP_LEVEL_SKILLS) {
     const src = path.join(REPO, ".claude/skills", skillDir, "SKILL.md");

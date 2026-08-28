@@ -30,7 +30,7 @@ Validate story is implementable:
 - `testCases[]` present?
 - `depends_on` real and satisfied (upstream code exists in this worktree)?
 
-**Complete brief — zero setup reads.** The workerBrief is the whole contract: constitution digest + command-rules digest + ACs + integration + compileCmd + lint digest + role digests. Do NOT open skill files (constitution.md, tdd.md, command-execution.md, api-testing.md, ARCHITECTURE slices). A rule the digests don't cover → the gap-check escalation above (one question). Never guess.
+**Complete brief — zero setup reads.** The workerBrief is the whole contract: constitution + command-execution + [testing standard](../standards/testing.md) + (per sliceType: [db](../standards/db.md) / [backend](../standards/backend.md) / [api-testing](../standards/api-testing.md) / [ui-design](../standards/ui-design.md) + scoped DESIGN.md) + ACs + integration + compileCmd + lint digest. These standards files are injected verbatim into the brief — do NOT open skill files (constitution.md, tdd.md, command-execution.md, api-testing.md, ARCHITECTURE slices). A rule the injected standards don't cover → the gap-check escalation above (one question). Never guess.
 
 Gap found → escalate ONE question to orchestrator. DO NOT guess.
 
@@ -55,7 +55,7 @@ The orchestrator may degrade a stalled slice into small chunks: you implement ON
 
 ### 4c. Pre-return self-check (review contract)
 
-Before returning the manifest: run each applicable role `## Digest` (injected in the brief) against your own diff. Fix violations now, or list unfixed ones as known deviations in `findings[]`. Your "done" should mean the reviewer's "clean" — only genuinely judgment-call findings survive to the review wave.
+Before returning the manifest: re-check the injected standards files (constitution + testing + your sliceType's standards) against your own diff. Fix violations now, or list unfixed ones as known deviations in `findings[]`. Your "done" should mean the reviewer's "clean" — only genuinely judgment-call findings survive to the review wave.
 
 ## Return manifest (to orchestrator)
 Return compact JSON only: `sliceId`, `status`, one-line `summary`, `testsPassed`, `branch`, `evidencePaths[]`, `findings[]`.

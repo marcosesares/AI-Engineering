@@ -41,7 +41,7 @@ Durable, project-level reference: THIS project's structure + project-specific co
 <API-client method shape; i18n key scheme/prefixes; how new endpoint/component plugs in.>
 
 ### §4.1 Test architecture (Fork Y, ADR 0024 — REQUIRED before any API-bearing task launches)
-Seeded in pre-impl (human phase); flight READS, never writes. Baseline standard = [standards/api-testing.md](standards/api-testing.md); fill THIS project's actuals (they override the baseline).
+Seeded in pre-impl (human phase); flight READS, never writes. Baseline standard = [standards/api-testing.md](../standards/api-testing.md); fill THIS project's actuals (they override the baseline).
 
 **Every command written here MUST be non-interactive and self-terminating** (ADR 0033) — it exits on its own, prompts for nothing, and serves/watches nothing. `compose up` carries `-d`; no `--ui`/`--headed`/`--watch`/`--debug`; no `dev`/`serve`/`start` script. Flight runs these bounded ([impl/command-execution.md](../impl/command-execution.md) budgets); state a larger budget inline if a step legitimately needs one. A command here that blocks forever hangs the whole flight — flight WARNs and skips rather than running it.
 - **Compile command:** <fast compile-only check, e.g. `./gradlew :backend:compileJava` | `mvn -q compile` | `npx tsc --noEmit`>. OPTIONAL — overrides flight's compile auto-detection. Compile ONLY; does NOT package. Empty → flight auto-detects from repo files (ADR 0032).

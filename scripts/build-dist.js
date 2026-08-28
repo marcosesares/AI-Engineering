@@ -116,7 +116,14 @@ function main() {
   fs.copyFileSync(path.join(MARKETPLACE_META_SRC, "plugin.json"), path.join(PLUGIN_META_DST, "plugin.json"));
   process.stdout.write("build-dist: copied marketplace manifests → dist/marketplace\n");
 
-  syncDir(CLAUDE_AGENTS_SRC, path.join(PLUGIN_DIR, "agents"));
+  // Plugin agents live under plugins/e2e-engineering/agents/ while the shared
+  // standards/schemas live under plugins/e2e-engineering/shared/skills/. The
+  // repo-root-relative links baked into the wrappers (../../skills/…) don't
+  // resolve there — rewrite them to the plugin-local shared tree, mirroring the
+  // ../../../skills/ → ../../shared/skills/ rewrite for plugin SKILL.md.
+  syncDir(CLAUDE_AGENTS_SRC, path.join(PLUGIN_DIR, "agents"), [
+    ["](../../skills/e2e-engineering/", "](../shared/skills/e2e-engineering/"]
+  ]);
 
   // Cursor rule artifacts
   const CURSOR_RULES_SRC = path.join(REPO, ".cursor", "rules");
@@ -152,10 +159,29 @@ function main() {
   process.stdout.write("build-dist: synced Codex runtime → " + path.relative(REPO, path.join(DIST, "codex", ".agents", "skills")) + "\n");
 }
 
-function syncDir(src, dst) {
+function syncDir(src, dst, replacements) {
   rmrf(dst);
-  copyDir(src, dst);
+  if (replacements && replacements.length) {
+    copyDirWithReplacements(src, dst, replacements);
+  } else {
+    copyDir(src, dst);
+  }
   process.stdout.write("build-dist: synced " + path.relative(REPO, src) + " → " + path.relative(REPO, dst) + "\n");
+}
+
+function copyDirWithReplacements(src, dst, replacements) {
+  fs.mkdirSync(dst, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const s = path.join(src, entry.name);
+    const d = path.join(dst, entry.name);
+    if (entry.isDirectory() || fs.statSync(s).isDirectory()) {
+      copyDirWithReplacements(s, d, replacements);
+    } else if (/\.(md|mdc)$/i.test(entry.name)) {
+      copyFileWithReplacements(s, d, replacements);
+    } else {
+      fs.copyFileSync(s, d);
+    }
+  }
 }
 
 function syncSkillDirs(srcRoot, dstRoot, names, label) {

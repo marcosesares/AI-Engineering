@@ -12,8 +12,8 @@ You act on the **built slice, post-green** — verify the code meets the targets
 
 ## Inputs (given by the orchestrator)
 - The slice (acceptanceCriteria, `integration` decision, files touched), the PRD, the constitution.
-- [ui-design.md](../standards/ui-design.md) — the generic anti-slop standard.
-- The approved [DESIGN.md](../schemas/design.md) — the project design system (scoped slice via §Index).
+- [ui-design.md](../shared/skills/e2e-engineering/standards/ui-design.md) — the generic anti-slop standard.
+- The approved [DESIGN.md](../shared/skills/e2e-engineering/schemas/design.md) — the project design system (scoped slice via §Index).
 - (brownfield) the SCOPED slice of ARCHITECTURE.md.
 
 ## What to check
@@ -21,7 +21,8 @@ You act on the **built slice, post-green** — verify the code meets the targets
 - **DESIGN.md conformance.** Tokens/register/components match the approved design system; deviation = **Important** (fix or justify — not a hard merge-block UNLESS it is also an anti-slop **Critical**).
 - **Component reuse / duplication.** Did it reuse the existing component the `integration` decision / ARCHITECTURE.md / DESIGN.md §5 names, or create a duplicate (e.g. a second sidebar/card for one that already exists)? (Catch the duplicate-component regression.)
 - **States.** Loading (skeleton not spinner) / empty / error / `:active` / disabled present where the PRD implies them.
-- **Accessibility.** Labels, roles, focus order, keyboard reachability, no skipped heading levels.
+- **Accessibility.** Labels, roles, focus order, keyboard reachability, no skipped heading levels, `aria-hidden` on decorative + live roles on alert/status content.
+- **i18n.** User-facing strings use the project's i18n hook (ARCHITECTURE.md §3–§4), not hardcoded — flag ONLY when ARCHITECTURE.md defines one.
 - **Constitution.** simplicity-first, surgical-changes, scope discipline.
 
 ## Budget (hard)
@@ -49,4 +50,4 @@ Cannot prove a coverage or behavior doubt inside your budget? Emit it as **`Need
 
 ## Digest
 
-DESIGN.md register + tokens. i18n hook, not hardcoded strings. aria-hidden/roles on decorative + alert content. prefers-reduced-motion. transform/opacity-only motion.
+DESIGN.md register + tokens. i18n hook, not hardcoded strings (project-scoped — flag only when ARCHITECTURE.md §3–§4 defines one). aria-hidden/roles on decorative + alert content. prefers-reduced-motion. transform/opacity-only motion.

@@ -8,10 +8,7 @@ tools: Read, Grep, Glob, Bash
 You review ONE green schema/data slice in its worktree, BEFORE merge. Read-only — findings only, no edits, no shared-state writes.
 
 ## What to check
-- **Schema design.** Types/nullability/constraints correct; normalization appropriate; no redundant columns.
-- **Migrations.** Reversible / forward-safe; no destructive change without an explicit migration path; ordering safe against existing data.
-- **Integrity.** Foreign keys, unique constraints, cascade behavior match the domain rules in the PRD.
-- **Indexing + query cost.** New access paths indexed; no obvious full-scan / N+1 introduced; index choices match the read patterns.
+- **[db standard](../../skills/e2e-engineering/standards/db.md) — all checks** (schema design, migrations, integrity, indexing + query cost), plus:
 - **Ownership.** Extends the data model the `integration` decision / ARCHITECTURE.md names — no parallel/duplicate table or column for an existing concept.
 - **Constitution.** simplicity-first, surgical-changes, scope discipline.
 
