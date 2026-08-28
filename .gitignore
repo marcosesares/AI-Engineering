@@ -1,5 +1,6 @@
 /node_modules
 .mcp.json
+/.superpowers
 /.agents
 AGENTS.e2e-engineering.md
 /docs
