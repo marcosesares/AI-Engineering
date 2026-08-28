@@ -42,3 +42,14 @@ Expert-review findings had three silent exits: `Minor` was noted and never fixed
 - Reviewers must now cite `Minor` findings to have them actioned, which changes reviewer output shape. All four review-wave reviewer specs (`backend-architect`, `dba`, `frontend-reviewer`, `test-reviewer`) need the severity semantics updated; `product-designer` (pre-build advisory) and `architecture-scout` (deslop) are untouched.
 - `flow-retro.md` loses the `rejected un-evidenced Criticals` counter (the state no longer exists) and gains bounce rounds per slice, verifier spend (confirmed/refuted/inconclusive), open-at-cap → followups (P1/P3), and dropped un-cited Minors.
 - CONTEXT.md gains glossary entries for the convergence loop, `finding-verifier`, finding state, and `followups.json`; the `Expert-review wave` entry needs its un-evidenced-Critical sentence rewritten.
+
+## Amendment (2026-08-27 — convergence v2)
+
+Accepted — refines this ADR's convergence loop. Evidence: a measured 2026-08 DSH flight logged 15 bounces and TWO cap exhaustions (5/4, 5/4). Rounds are the scarce resource; spending them on newly-surfaced Minors is opportunity cost against a Critical that may surface next round.
+
+1. **Phase A — Critical/Important-driven.** While any Critical/Important finding is `open`: bounce → the worker fixes ALL open findings in ONE pass (Minors piggyback) → re-review. Each bounce consumes one round; new findings never reset the count.
+2. **Phase B — Minor-only.** When zero Critical/Important are `open`: one fix pass for all remaining Minors → ONE review (scope = the finding-owner reviewer roles + `test-reviewer`) → any Minor still open after that review → `state: carried` → `followups.json` (P3). No further Minor rounds.
+3. **Cap = 5** (was 4), absolute per slice, never reset. Rationale: the Minor fix pass is now the FINAL round, so cap 5 guarantees it a slot after a full C/I loop.
+4. **Edge rules.** (a) Cap exhausted in Phase A with Minors still open → carried WITHOUT their fix pass (cap is absolute). (b) A new Critical/Important surfaced during the Phase-B review → back to Phase A, count continues. (c) Un-cited Minors still drop at the hygiene gate — no carry without cite + implied action. (d) The verify wave and suppression rules are unchanged; carried Minors get no verifier spend.
+5. **Merge gate.** Zero open Critical/Important; Minors resolved per rule (fixed in Phase A piggybacks or the Phase-B pass, else `carried`). `carried` joins the finding state enum: `open | fixed | dropped-refuted | open-at-cap | carried`.
+6. **Supersessions.** Decision 2's "Minor is an ordinary finding; a Minor-only round is legal and costs one round" is REPLACED. The Considered-Options entry "Minors deferred" is revisited: rejected then as merging-with-known-open-findings; accepted now in the narrow Phase-B form because cap exhaustion already merges with open findings, and `carried` routes them to followups with a state, not a silent merge.
