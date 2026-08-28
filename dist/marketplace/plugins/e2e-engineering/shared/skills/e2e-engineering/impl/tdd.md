@@ -53,7 +53,7 @@ The orchestrator may degrade a stalled slice into small chunks: you implement ON
 
 **Every command you run is bounded + non-interactive** per [command-execution](./command-execution.md) (ADR 0033): compile with the injected `compileCmd` (never assume `mvn`), 6 min (focused gradle 12 min); test suite 20 min (full backend suite 30 min). A timeout counts as a failed fix (gate-3 strike) — log `TIMEOUT <cmd> @<budget>s`, add a `findings[]` `type:blocker` carrying cmd + budget, never re-run unchanged more than once. Never foreground a watch/serve/dev command or attach to logs — it never returns and no brake will catch it. All commands use the workdir param (never in-command `cd`); long producers redirect to a log file (never `Out-String`/`head`/`tail` pipe-filters); git always `commit -m` / `merge --no-edit`; tests always `npx vitest run` (bare `vitest` = watch = hang); never `./gradlew --stop`.
 
-## 4c. Pre-return self-check (review contract)
+### 4c. Pre-return self-check (review contract)
 
 Before returning the manifest: run each applicable role `## Digest` (injected in the brief) against your own diff. Fix violations now, or list unfixed ones as known deviations in `findings[]`. Your "done" should mean the reviewer's "clean" — only genuinely judgment-call findings survive to the review wave.
 
@@ -61,6 +61,7 @@ Before returning the manifest: run each applicable role `## Digest` (injected in
 Return compact JSON only: `sliceId`, `status`, one-line `summary`, `testsPassed`, `branch`, `evidencePaths[]`, `findings[]`.
 
 - Put detailed logs in normal test/build report paths or assigned per-slice evidence paths; return pointers only. **Evidence = counts + ≤20-line excerpts (ADR 0036)** — full logs stay on disk (gitignored `*.log`), deleted at worktree removal, NEVER committed.
+
 NEVER commit `evidence/` dirs — evidence files are untracked only, like env/config files. Evidence = manifest pointers + counts + ≤20-line excerpts.
 - Include test-case ids and red→green proof in evidence artifacts, not chat.
 - Durable learnings / architecture drift go in `findings[]` as concise warnings. Do NOT edit ARCHITECTURE.md — orchestrator stages it; human decides at QA gate.

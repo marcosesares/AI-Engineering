@@ -39,12 +39,12 @@ Sidecar files at Task root: `manifests/<story-id>/`. Written by orchestrator at 
 
 ## Invariants
 - **COMPLETE** = every story `status: "done"`. (Replaces Ralph's `passes: true`.)
-- `status` enum: exactly three values. `blocked` only after debug escalation (GATE 3 — 3 failed fixes + systematic-debugging failed, red tests). **Expert-review findings NEVER produce `blocked`** (ADR 0035): a slice that exhausts its 4 bounce rounds MERGES as `done`, its open findings recorded in `notes` and carried into `followups.json` ([schema](followups.json.md)).
+- `status` enum: exactly three values. `blocked` only after debug escalation (GATE 3 — 3 failed fixes + systematic-debugging failed, red tests). **Expert-review findings NEVER produce `blocked`** (ADR 0035): a slice that exhausts its 5 bounce rounds MERGES as `done`, its open findings recorded in `notes` and carried into `followups.json` ([schema](followups.json.md)).
 - `depends_on` edges encode tracer→schema→logic→api→ui ordering. Each feature sequential along chain; independent chains parallel.
 - **Ready set** = stories whose `depends_on` all `done` AND own `status` is `todo`.
 - Sub-agents NEVER write this file. Return slice result manifest; orchestrator reconciles + writes `status` at fan-in. Sidecar `status` fields (slice-result.json, review-result.json) are NEVER authoritative — prd.json is sole source of truth for story status.
 - `resultManifestPath` + `reviewManifestPath` set by orchestrator after fan-in (null until then). Path relative to Task root.
 - `testCases[]` ids point at `.md` test-case docs authored upfront by to-issues.
-- `estimatedLoc` required per story; out-of-bounds for its sliceType = Gate 1 block (to-prd sizing table). The e2e-flight oversized-slice WARN is defense-in-depth only — it should never fire.
+- `estimatedLoc` required per story; out-of-bounds for its sliceType = Gate 1 block (to-prd sizing table). Flight Step 2 re-checks fail-closed: missing or out-of-bounds `estimatedLoc` → stall `oversized-slice` (revert slice to `ready-for-flight`) unless `gate1SizingOverride: true` + `sizingOverrideNote`.
 - `gate1SizingOverride` optional bool + `sizingOverrideNote` string — deliberate human exception for an out-of-bounds slice (who/why). Flight Step 2 refuses out-of-bounds slices unless this is `true`; override-approved slices get subsystem-scoped reviewer evidence.
 - `integration` set by to-issues (reading ARCHITECTURE.md §1–§2 via §Index offset/limit), not by sub-agent. Single place brownfield ownership decided — once, by orchestrator. See ADR 0013.

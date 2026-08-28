@@ -60,7 +60,7 @@ Depth reference (not the contract): knowledge-base `wiki/tools/playwright` — [
 
 ## Per-domain fixture helpers
 
-Every domain (course/lesson/asset/session…) gets seed/cleanup fixture helpers in the API-test project — never per-spec hand-seeding. Cross-spec data contamination is a measured failure class (video flight: 4 full-suite failures from every spec seeding the same rows). Each spec calls its domain's fixture; cleanup runs in `afterAll` so specs stay independent.
+Every project domain gets seed/cleanup fixture helpers in the API-test project — never per-spec hand-seeding. Cross-spec data contamination is a measured failure class (one 2026-08 flight: 4 full-suite failures from every spec seeding the same rows). Each spec calls its domain's fixture; cleanup runs in `afterAll` so specs stay independent.
 
 ## Testcontainers fallback (docker-CLI-container)
 

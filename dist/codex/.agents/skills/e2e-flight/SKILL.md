@@ -127,6 +127,7 @@ Repeat until DAG drained (every slice `done` or `blocked`):
    **Severity discipline.** Critical/Important imply an ACTION. A finding marked Important with "no change required" → downgrade to Minor (flight-log misuse #4 — orchestrator overrides).
 
    **Convergence loop v2 (ADR 0035 amendment — replaces the bounce cap).** `open[]` = findings with `state: open`, ANY severity.
+   - open[] empty → Step 3.4 lint+compile → merge (no review round).
    - **Phase A (C/I-driven):** while any Critical/Important is `open` → `bounce.rounds += 1` (per slice, ABSOLUTE, never reset) → worker fixes ALL open findings in ONE pass (Minors piggyback) → re-review → loop.
    - **Phase B (Minor-only):** zero C/I open → one fix pass for all remaining Minors (consumes one round) → ONE review (scope = finding-owner roles + `test-reviewer`) → any Minor still open → `state: carried` → `followups.json` (P3). No further Minor rounds. New C/I surfaced by the Phase-B review → back to Phase A, count continues.
    - **Cap = 5.** `bounce.rounds > 5` → cap exhausted → merge + followup (below). NEVER `blocked`. Minors open at a Phase-A cap hit → carried WITHOUT their fix pass.

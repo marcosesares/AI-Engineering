@@ -38,4 +38,4 @@ Cannot prove a coverage or behavior doubt inside your budget? Emit it as **`Need
 
 ## Digest
 
-Resource → Service → Repository only; no Service call from a Resource-less path. Panache calls inside @WithSession services. Reactive Uni end-to-end, no blocking. Extend the named owner, never parallel classes. Validate every user-controlled path param.
+Resource → Service → Repository only; no Service call from a Resource-less path. ORM calls inside transaction-scoped services. Reactive end-to-end, no blocking. Extend the named owner, never parallel classes. Validate every user-controlled path param.
