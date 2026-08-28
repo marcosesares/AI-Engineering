@@ -12,6 +12,7 @@ Read ONCE at flight Step 0 when the runtime is DSH (DeepSeek Harness): the Step-
 | `job_kill` / orphan sweep | `job_kill` + targeted-PID pwsh sweep (never `gradlew --stop`) |
 | OS timeout wrapper | foreground `pwsh timeoutMs` — NATIVE, enforced (kills at deadline, `timedOut: true`). Background: NO timeout applies — watchdog only |
 | interrupt stuck reviewer/worker | `interrupt_agent` / `job_kill`; then `send_message` for a follow-up turn |
+| review/verify waves (initial, re-review, finding-verifier) | `workflow` tool: parallel `agent()` stages, per-agent `model` override, `opts.schema`-validated results returned pre-merged; child failure → `null` → filter + record gap in `notes` |
 
 ## The two background-job rules (measured, not theoretical)
 
@@ -33,12 +34,25 @@ Read ONCE at flight Step 0 when the runtime is DSH (DeepSeek Harness): the Step-
 
 Never exceed the table — bigger ≠ safer (the drain's 12–13m/30m values matched these lines; the wedge was unboundedness, not size). Cold cache: ONE 2× retry, logged.
 
+## Review/verify tiers (ADR 0039)
+
+| Tier | Slots | Budget |
+|---|---|---|
+| T0 non-thinking cheap | finding-verifier, mechanical review slots, fan-in merge | verifier ≤8 calls |
+| T1 thinking medium | judgment reviewers (backend-architect, dba, frontend-reviewer, test-reviewer initial waves) | ≤15 initial / ≤8 re-review |
+
+Impl workers stay background `subagent` with prompt-discipline contracts (T1 discipline via the brief) — no model knob exists there. T2 reviewer reuse retired (ADR 0039).
+
+**Degrade, don't stall:** workflow unavailable (Step-0 probe) or failing → review/verify waves = background `subagent` dispatch with prompt-discipline tiers. Fan-out capability is essential; model routing is an optimization.
+
 ## Step-0 probes (DSH replaces the Codex/Claude probe set)
 
 1. **Fan-out probe** — spawn a trivial background subagent ("return OK"), confirm the notice arrives → fan-out available.
 2. **Worker-change probe** — probe worker runs `git rev-parse` + `git status` in the repo via pwsh → shared FS, commits visible (probe-verified).
 3. **Bounded-shell probe** — foreground pwsh `Start-Sleep 45` under `timeoutMs: 20000` → expect kill ~20s, `timedOut: true`. Not killed → treat as unbounded-shell stall.
 4. **Write-capability probe (DSH-only)** — create + delete a temp file at the task root. Denied → `<e2e-stall reason="sandbox-write-denied" />` + EXIT — a sandbox policy denial is FINAL, never retry/loop.
+5. **Workflow-availability probe** — run a trivial workflow script (one `agent()`, one-word reply, `schema`-validated). Success → workflow review waves active (ADR 0039); failure → subagent review fallback, no stall.
+6. **Concurrency budget probe** — read free RAM + CPU count via pwsh; persist `resume.json` `concurrency` cap (concurrent `subagent` dispatches + workflow parallelism). Default when unreadable: 2 workers / 4 reviewers.
 
 ## Sandbox modes
 
@@ -51,7 +65,7 @@ Never exceed the table — bigger ≠ safer (the drain's 12–13m/30m values mat
 - Subagents receive the prompt ALWAYS (empty-message bootstrap stays fallback-only — tdd.md §0).
 - Workers = clean-context `subagent` (self-contained manifest prompt); reviewers = clean-context `subagent` (review-bundle path, never paste diffs/logs — DSH truncates long tool output to a tail + spillPath; read tails).
 - `list_agents` `running`/`idle`/`ready` is the worker-stall signal — a zero-commit wave with workers alive = throughput stall → chunk-driver degrade, never `worker-changes-unavailable`.
-- `workflow` tool MAY replace the manual review-wave fan-out (parallel, schema-validated results).
+- `workflow` IS the review/verify dispatch (ADR 0039): foreground + blocking — pre-bound wave size (2–4 agents) + budgets in prompts + schema-required returns. Never an unbounded workflow script.
 
 ## Model efficiency (DeepSeek v4, reasoning-effort max)
 

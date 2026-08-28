@@ -12,10 +12,11 @@ Per-Task PROCESS-friction record (ADR 0027). Written by `/e2e-flight` at Step 6 
 - gate-5 failures: <n>
 - stalls: <n> — <reason> ...
 - fan-out fired: <n> waves (impl: <n>, review: <n>, verify: <n>)
-- bounce rounds: <slice-id: n/4> ... (cap exhausted: <n> slices)
+- bounce rounds: <slice-id: n/5> ... (cap exhausted: <n> slices)
 - verifier spend: <n> findings (confirmed <n> / refuted <n> / inconclusive <n>)
 - open-at-cap: <n> findings -> <n> followups (P1 <n>, P3 <n>)
 - dropped un-cited Minors: <n>
+- carried Minors: <n>
 - watchdog kills/hangs: <n>
 - chunk-driver degrade: <n> waves
 - carrier API smokes: <n> (red: <n>)
@@ -27,7 +28,7 @@ Per-Task PROCESS-friction record (ADR 0027). Written by `/e2e-flight` at Step 6 
 ```
 
 ## Sections
-1. **§Local retro** — metrics for the team running the flow. Counters flight accumulates during the spawn: bounce count (by tier), blocked slices + cause (gate-3 exhaustion), [[Gate 5 failure]] count, stalls + reason, fan-out wave count (impl + review + verify), bounce rounds per slice against the cap of 4, verifier spend split by resolution, findings left `open-at-cap` and the followups they produced, un-cited Minors dropped without verifier spend (ADR 0035), watchdog kills/hangs (ADR 0036), chunk-driver degrade waves (ADR 0037), and carrier API smokes red/green (ADR 0036). Operational, stays in the client project.
+1. **§Local retro** — metrics for the team running the flow. Counters flight accumulates during the spawn: bounce count (by tier), blocked slices + cause (gate-3 exhaustion), [[Gate 5 failure]] count, stalls + reason, fan-out wave count (impl + review + verify), bounce rounds per slice against the cap of 5 (carried Minors counted separately), verifier spend split by resolution, findings left `open-at-cap` and the followups they produced, un-cited Minors dropped without verifier spend (ADR 0035), watchdog kills/hangs (ADR 0036), chunk-driver degrade waves (ADR 0037), and carrier API smokes red/green (ADR 0036). Operational, stays in the client project.
 2. **§Skill-improvement candidates** — friction that looks like an e2e-engineering **tool defect** (not project work). Each is a [[Skill-improvement candidate]] tagged for upstream. Empty section is fine (write `- none`).
 
 ## Invariants

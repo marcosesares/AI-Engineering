@@ -57,3 +57,11 @@ Annotate each test with its test-case id (Playwright `annotation`), so test → 
 - Inventing a new test harness when the project already has API-test conventions (override rule).
 
 Depth reference (not the contract): knowledge-base `wiki/tools/playwright` — [[playwright-network]], [[playwright-auth-state]], [[playwright-assertions]].
+
+## Per-domain fixture helpers
+
+Every domain (course/lesson/asset/session…) gets seed/cleanup fixture helpers in the API-test project — never per-spec hand-seeding. Cross-spec data contamination is a measured failure class (video flight: 4 full-suite failures from every spec seeding the same rows). Each spec calls its domain's fixture; cleanup runs in `afterAll` so specs stay independent.
+
+## Testcontainers fallback (docker-CLI-container)
+
+Docker Desktop 29's docker-java incompatibility breaks Testcontainers. Canonical workaround: the docker-CLI-container fallback — run the container via the docker CLI and point the test config at it. Document the exact commands in ARCHITECTURE.md §4.1b when a repo hits this; the standard here is the fallback pattern, not Testcontainers-or-nothing.

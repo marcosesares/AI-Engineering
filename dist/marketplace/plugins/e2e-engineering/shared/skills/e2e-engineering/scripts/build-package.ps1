@@ -1,0 +1,69 @@
+# build-package.ps1 — e2e-flight script (D8 governance)
+# BOUNDED + NON-INTERACTIVE: each child command carries its budget; no watch/serve/dev.
+# LOG-TO-FILE: long producers redirect to a log file, tail read after exit — NEVER Out-String/head/tail pipe filters, NEVER named-pipe capture (DSH forbids).
+# VERDICT: exit 0 + ONE JSON object on stdout { "ok": true|false, ... } — keys stable, prose values caveman-ultra, code symbols verbatim.
+# NO SIDECAR WRITES: returns JSON only; the orchestrator writes state (sole writer).
+param(
+    [Parameter(Mandatory = $true)][string]$Worktree
+)
+
+$ErrorActionPreference = 'Stop'
+$env:CI = '1'; $env:NO_COLOR = '1'; $env:GIT_EDITOR = 'true'; $env:GIT_TERMINAL_PROMPT = '0'
+
+function Invoke-Bounded {
+    param(
+        [Parameter(Mandatory = $true)][string]$Exe,
+        [Parameter(Mandatory = $true)][string[]]$Args,
+        [Parameter(Mandatory = $true)][string]$Dir,
+        [Parameter(Mandatory = $true)][string]$Log,
+        [Parameter(Mandatory = $true)][int]$TimeoutSec
+    )
+    $errLog = "$Log.err"
+    Remove-Item -Path $Log, $errLog -ErrorAction SilentlyContinue
+    $p = Start-Process -FilePath $Exe -ArgumentList $Args -WorkingDirectory $Dir -NoNewWindow -PassThru -RedirectStandardOutput $Log -RedirectStandardError $errLog
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while (-not $p.HasExited) {
+        Start-Sleep -Milliseconds 250
+        if ($sw.Elapsed.TotalSeconds -ge $TimeoutSec) {
+            try { $p.Kill($true) } catch {}
+            try { $p.WaitForExit() } catch {}
+            return [pscustomobject]@{ TimedOut = $true; ExitCode = $null; Log = $Log; ErrLog = $errLog }
+        }
+    }
+    $p.WaitForExit()
+    return [pscustomobject]@{ TimedOut = $false; ExitCode = $p.ExitCode; Log = $Log; ErrLog = $errLog }
+}
+
+function Get-FirstErrors {
+    param([Parameter(Mandatory = $true)][string]$Log, [int]$N = 5)
+    if (-not (Test-Path -LiteralPath $Log)) { return @() }
+    $lines = Get-Content -LiteralPath $Log | Where-Object { $_ -match '(?i)error|fail|exception|cannot|not found|no such' }
+    return @($lines | Select-Object -First $N)
+}
+
+if (-not (Test-Path -LiteralPath $Worktree)) {
+    Write-Output ([pscustomobject]@{ ok = $false; verdict = 'BUILD FAILED'; errors = @("no such worktree $Worktree") } | ConvertTo-Json -Compress -Depth 10)
+    exit 1
+}
+$worktree = (Resolve-Path -LiteralPath $Worktree).Path
+
+$gradlew = Join-Path $worktree 'gradlew.bat'
+if (-not (Test-Path -LiteralPath $gradlew)) { $gradlew = Join-Path $worktree 'gradlew' }
+if (-not (Test-Path -LiteralPath $gradlew)) {
+    Write-Output ([pscustomobject]@{ ok = $false; verdict = 'BUILD FAILED'; errors = @('gradlew not found in worktree') } | ConvertTo-Json -Compress -Depth 10)
+    exit 0
+}
+
+$log = Join-Path $worktree 'build-package.log'
+$r = Invoke-Bounded -Exe 'cmd.exe' -Args @('/c', (Split-Path $gradlew -Leaf), ':backend:quarkusBuild', '--no-daemon', '--console=plain') -Dir $worktree -Log $log -TimeoutSec 900
+
+if ($r.TimedOut) {
+    Write-Output ([pscustomobject]@{ ok = $false; verdict = 'BUILD FAILED'; errors = @('quarkusBuild TIMEOUT @900s') } | ConvertTo-Json -Compress -Depth 10)
+    exit 0
+}
+if ($r.ExitCode -ne 0) {
+    Write-Output ([pscustomobject]@{ ok = $false; verdict = 'BUILD FAILED'; errors = @(Get-FirstErrors -Log $log) } | ConvertTo-Json -Compress -Depth 10)
+    exit 0
+}
+Write-Output ([pscustomobject]@{ ok = $true; verdict = 'BUILD SUCCESSFUL' } | ConvertTo-Json -Compress -Depth 10)
+exit 0

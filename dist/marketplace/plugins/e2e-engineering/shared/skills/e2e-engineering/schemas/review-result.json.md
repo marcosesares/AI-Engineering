@@ -17,7 +17,7 @@ Evidence sidecar. Written by orchestrator at expert-review fan-in. Lives at `tas
           "location": "string — file:line or component/area",
           "message": "string",
           "evidence": "string — file:line | test name | log path | explicit searched-absence scope. null ONLY while pre-verify",
-          "state": "open | fixed | dropped-refuted | open-at-cap",
+          "state": "open | fixed | dropped-refuted | open-at-cap | carried",
           "verification": {
             "resolution": "confirmed | refuted | inconclusive",
             "verifierEvidence": "string | null",
@@ -44,7 +44,7 @@ Verifier return shape (one per unproven finding, `finding-verifier` — never wr
 - `reviews[]` contains one entry per reviewer dispatched for this slice.
 - `findings[]` empty array if reviewer found nothing. Absence of entry means reviewer was not dispatched (sliceType routing).
 - **`severity` is exactly `Critical | Important | Minor`.** `NeedsVerification` and `Unsubstantiated` are NOT severities. `NeedsVerification` is a pre-verify signal a reviewer raises in place of an unproven Critical; `Unsubstantiated` is RETIRED (ADR 0035) — an un-cited claim is now spent on a `finding-verifier` and lands as `dropped-refuted` or `open`.
-- **`state` transitions (ADR 0035):** `open` → `fixed` (a bounce round resolved it and the re-review no longer raises it) · `open` → `dropped-refuted` (verifier returned `refuted`, or `inconclusive` which counts as refuted) · `open` → `open-at-cap` (still open when bounce round 5 was entered; carried into `followups.json`).
+- **`state` transitions (ADR 0035 + amendment):** `open` → `fixed` (a bounce round resolved it and the re-review no longer raises it) · `open` → `dropped-refuted` (verifier returned `refuted`, or `inconclusive` which counts as refuted) · `open` → `open-at-cap` (still open when bounce round 6 was entered — cap 5; carried into `followups.json`) · `open` → `carried` (a Minor surviving the Phase-B fix pass + review; routed to `followups.json` P3, no verifier spend, never re-examined).
 - **`evidence` is non-null for every terminal finding.** Un-cited `Critical`/`Important` go to the verify wave; un-cited `Minor` is dropped without verifier spend; a finding with no action is downgraded (`Important`→`Minor`) or dropped (`Minor`).
 - **`signal: "NeedsVerification"`** marks a finding the reviewer could not prove. It is orthogonal to `severity`, which still carries the severity the reviewer would assign — so the `suppressed[]` key `<severity>|<location>|<sha1-8 of message>` is always well-defined. The verify wave clears `signal` to `null` on `confirmed`, or the finding becomes `dropped-refuted`.
 - `verification` is null until the verify wave runs on that finding, and each finding is verified AT MOST ONCE per slice.

@@ -46,4 +46,5 @@ Sidecar files at Task root: `manifests/<story-id>/`. Written by orchestrator at 
 - `resultManifestPath` + `reviewManifestPath` set by orchestrator after fan-in (null until then). Path relative to Task root.
 - `testCases[]` ids point at `.md` test-case docs authored upfront by to-issues.
 - `estimatedLoc` required per story; out-of-bounds for its sliceType = Gate 1 block (to-prd sizing table). The e2e-flight oversized-slice WARN is defense-in-depth only — it should never fire.
+- `gate1SizingOverride` optional bool + `sizingOverrideNote` string — deliberate human exception for an out-of-bounds slice (who/why). Flight Step 2 refuses out-of-bounds slices unless this is `true`; override-approved slices get subsystem-scoped reviewer evidence.
 - `integration` set by to-issues (reading ARCHITECTURE.md §1–§2 via §Index offset/limit), not by sub-agent. Single place brownfield ownership decided — once, by orchestrator. See ADR 0013.
