@@ -3,6 +3,10 @@
 # LOG-TO-FILE: long producers redirect to a log file, tail read after exit — NEVER Out-String/head/tail pipe filters, NEVER named-pipe capture (DSH forbids).
 # VERDICT: exit 0 + ONE JSON object on stdout { "ok": true|false, ... } — keys stable, prose values caveman-ultra, code symbols verbatim.
 # NO SIDECAR WRITES: returns JSON only; the orchestrator writes state (sole writer).
+#   EXCEPTION (deliberate): this script writes resume.json's ports.nextFree ledger
+#   write-ahead + a sibling ports.lock to serialize parallel-slice port claims
+#   (followup 2026-08-27: port-claim atomicity). Both are port-ledger mechanics,
+#   not authoritative state — the orchestrator remains sole writer of flight state.
 param(
     [Parameter(Mandatory = $true)][string[]]$Tests,
     [int]$Port = 0,
