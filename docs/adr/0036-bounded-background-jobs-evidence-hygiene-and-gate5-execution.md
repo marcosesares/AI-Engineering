@@ -38,3 +38,12 @@ The payments-monetization drain paid for four gate-5 classes of friction: a back
 - `flow-retro.md` gains three counters: watchdog kills/hangs, chunk-driver degrade waves (ADR 0037), and carrier API smokes (red/green).
 - Evidence artifacts shrink to counts + excerpts; anything larger is a red flag at fan-in and gate 5.
 - `impl/command-execution.md` gains §9 (background jobs stay bounded); `impl/verification.md` gains the fork-heap, stale-XML, carrier-smoke, and watchdog rules; both flight entry points carry the new red flags.
+
+## Amendment (2026-08-27 — batched carrier smoke + stack ownership)
+
+Accepted — refines this ADR's carrier smoke. Evidence: a measured 2026-08 DSH flight rebuilt the stack ~8 times where 3 would have covered the work (stack-up 10m + package build 15m, bounded, each).
+
+1. **Carrier smoke runs once per wave.** After the wave's merges: ONE stack-up per §4.1 Stack-up, then run EVERY spec file changed by that wave's carriers in that session (bounded, API project). Red spec → a REPAIR SLICE on the task branch (fresh worker + Gate 3) targeting the red spec's code, merged before the wave closes. Invariant: **no wave closes with a red smoke.** Detection anchor moves merge-time → wave-close; it stays pre-gate-5, which is the ADR's purpose (blind-written specs shipping stale expectations + db-cleanup bugs).
+2. **Stack ownership.** The flight owns the compose stack during smoke/gate-5: `down -v → package build → up --force-recreate --build -d` runs UNCONDITIONALLY (bounded + log-to-file per ADR 0033). The flight does not probe for foreign stacks and does not ask — the entry-point doc (Task 5) carries the user-facing line: the flight tears down and rebuilds the stack; don't keep dev work in a running compose stack during a flight.
+3. **§4.1 heavy-rebuild defer WARN unchanged** (smoke deferred to gate 5 when §4.1 declares the rebuild too heavy).
+
