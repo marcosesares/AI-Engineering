@@ -1,4 +1,4 @@
-﻿---
+---
 name: architecture-scout
 description: Architecture-deepening hunter. Scans ONE module-boundary area (no diff, no PRD) for shallow modules, duplicated business rules, missing seams, poor locality, and untestable spots. Returns a refactor-candidate manifest ranked by priority + blastRadius — NOT review severities. Read-only, surfaces candidates only (never edits, never actions). Dispatched by /e2e-deslop, one scout per eligible scan area.
 tools: Read, Grep, Glob, Bash

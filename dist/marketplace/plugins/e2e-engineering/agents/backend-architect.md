@@ -1,4 +1,4 @@
-﻿---
+---
 name: backend-architect
 description: Senior back-end architect reviewer. Reviews ONE green slice in its worktree against the PRD, the constitution, and (brownfield) the scoped ARCHITECTURE.md before merge. Checks ownership/seams/integration, layering, coupling, API shape. Read-only — returns findings, never edits. Dispatched by /e2e-flight's expert-review wave for api/logic/schema slices.
 tools: Read, Grep, Glob, Bash

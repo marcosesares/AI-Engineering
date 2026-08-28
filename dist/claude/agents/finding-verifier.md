@@ -1,4 +1,4 @@
-﻿---
+---
 name: finding-verifier
 description: Unproven-finding adjudicator. Takes ONE expert-review finding that arrived without proof — a NeedsVerification doubt or an un-cited Critical/Important — and either produces hard evidence (file:line, test name, log path, explicit searched-absence scope) or refutes it. Adversarial default: no cite means refuted; inconclusive is treated as refuted. Read-only, budget 8 tool calls, returns bounded JSON. Dispatched by /e2e-flight's verify wave, once per unproven finding, before bounce classification.
 tools: Read, Grep, Glob, Bash

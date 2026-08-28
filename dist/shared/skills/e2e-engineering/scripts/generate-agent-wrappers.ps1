@@ -74,8 +74,27 @@ tools: $toolsStr
         Write-Host "[DRY RUN] Claude Code: $claudeOutPath"
     } else {
         New-Item -ItemType Directory -Force -Path $claudeAgentsDir | Out-Null
-        [System.IO.File]::WriteAllText($claudeOutPath, $claudeContent, [System.Text.Encoding]::UTF8)
-        Write-Host "Written : $claudeOutPath"
+        # UTF8 WITHOUT a BOM. [System.Text.Encoding]::UTF8 emits one (EF BB BF), which lands
+        # before the opening '---' and stops Claude Code from parsing the YAML frontmatter —
+        # the agent then never registers and every dispatch fails with "Agent type not found".
+        # Historical: a15d605 fixed this downstream on 2026-08-08 and skill sync 5523345
+        # silently reverted it; the post-write guard below exists so a regressed generator
+        # fails LOUD instead of shipping silently-broken wrappers.
+        $bomlessUtf8 = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($claudeOutPath, $claudeContent, $bomlessUtf8)
+
+        # Post-write validity self-check: BOM probe + frontmatter opener probe.
+        $writtenBytes = [System.IO.File]::ReadAllBytes($claudeOutPath)
+        if ($writtenBytes.Length -ge 3 -and $writtenBytes[0] -eq 0xEF -and $writtenBytes[1] -eq 0xBB -and $writtenBytes[2] -eq 0xBF) {
+            Write-Error "BOM guard failed: $claudeOutPath starts with EF BB BF — Claude Code cannot parse BOM-prefixed YAML frontmatter (agent would never register). Aborting."
+            exit 1
+        }
+        $writtenText = [System.IO.File]::ReadAllText($claudeOutPath, $bomlessUtf8)
+        if (-not $writtenText.StartsWith('---')) {
+            Write-Error "Wrapper validity check failed: $claudeOutPath does not start with '---' YAML frontmatter opener. Aborting."
+            exit 1
+        }
+        Write-Host "Written : $claudeOutPath (BOM-free, frontmatter OK)"
     }
 
     Write-Host ""

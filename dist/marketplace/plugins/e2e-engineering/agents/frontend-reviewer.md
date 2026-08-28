@@ -1,4 +1,4 @@
-﻿---
+---
 name: frontend-reviewer
 description: UI/UX slice reviewer. Reviews ONE green ui slice in its worktree against the PRD, constitution, the ui-design anti-slop standard, the approved DESIGN.md, and (brownfield) scoped ARCHITECTURE.md before merge. Checks component reuse, design-system consistency, accessibility, states, responsive behavior. Read-only — returns findings, never edits. Dispatched by /e2e-flight's expert-review wave for ui slices.
 tools: Read, Grep, Glob
