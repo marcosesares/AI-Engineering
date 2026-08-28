@@ -12,12 +12,20 @@
 > - **ADR 0036 — gate-5 runtime safety.** Every background/detached job gets an orchestrator [[Watchdog]] (bounded poll + deadline + `job_kill` + 10-min silence heuristic + orphan sweep); committed evidence = counts + ≤20-line excerpts only ([[Evidence excerpts]]); JVM suites ~80+ classes need a test-fork heap rule (§4.1/§4.1b or the init script — Gradle's 512MB default OOMs); verdicts read test-result XML only after `BUILD SUCCESSFUL` (stale-XML trap); a [[Carrier API smoke]] runs merged carrier specs early; `ARCHITECTURE.md §4.1b` is the first-class hook for repo-specific execution rules.
 > - **ADR 0037 — degraded dispatch + worker contract.** Zero-commit impl wave → [[Chunk-driver mode]] (small chunks + orchestrator-runs-tests; Gate 2 = test-first chunk); workers self-compile before every commit; empty spawn messages self-brief from the journaled manifest (tdd.md §0); re-review rounds halve to ≤8 tool calls (open findings + fix diff).
 > - **ADR 0038 — DSH runtime.** DeepSeek Harness is a first-class runtime: Step-0 tool-shape detection (`spawn_agent` absent + `subagent`/`pwsh`/`job_*` present → DSH mode, never `fanout-unavailable`); fan-out = background `subagent` dispatch per `impl/dsh-runtime.md`. **Measured:** DSH background jobs IGNORE `timeoutMs` (60s sleep/20s budget → 60.8s; 900s sleep/720s budget → completed) → the [[Watchdog]] is the ONLY background bound and its poll loop persists inside the turn (output-growth check). Write-capability probe → `<e2e-stall reason="sandbox-write-denied">`. DSH budget table + DeepSeek model-efficiency contract (artifact-driven, non-busy waits, goal tools).
+> - **ADR 0039 — DSH review routing + tiers.** Review/verify waves route through the `workflow` tool (per-agent model override, schema-validated pre-merged fan-in, stuck-reviewer protocol in-script); T0 = non-thinking cheap slots (finding-verifier, mechanical), T1 = judgment reviewers; impl workers stay background `subagent` (prompt discipline — no model knob); T2 reuse retired; workflow absent → subagent fallback, never a stall.
+> - **ADR 0035 amendment — convergence v2.** Phase A: bounce while any Critical/Important open (Minors piggyback, all open findings fixed per pass). Phase B: one Minor fix pass + one review (finding owners + test-reviewer) → survivors `state: carried` → followups P3. Cap 5 (was 4), absolute. Merge gate = zero open Critical/Important.
+> - **ADR 0036 amendment — batched carrier smoke + stack ownership.** ONE stack-up per wave, every changed spec in that session; red → repair slice; no wave closes red. The flight owns the compose stack — `down -v → build → up` unconditional, no probe, no ask.
+> - **ADR 0037 amendment — worker brief contract.** Complete inline brief (digests + ACs + compileCmd) — zero skill-file reads; checks at SEMANTIC COMMIT POINTS only (scope follows changed files); evidence commits banned; worker canary (`CANARY-OK`).
+> - **Flight Step 2 fail-closed.** `gate1Approved:false` → stall `unapproved-prd` + revert `needs-spec`; out-of-bounds `estimatedLoc` → stall `oversized-slice` + revert `ready-for-flight`; `gate1SizingOverride` = deliberate human exception (subsystem-scoped reviewer evidence).
 > - See [ADR 0022](docs/adr/0022-flight-one-task-per-spawn-no-loop-no-checkpoint.md) + [prototype/e2e-flight-process/design.md](prototype/e2e-flight-process/design.md).
 
 ## Language
 
 **e2e-engineering**: Master orchestrator skill. Detects current phase, sequences sub-skills, loops until all exit conditions met.
 _Avoid_: "engineering flow", "dev loop", "full pipeline"
+
+**Outlander**: Anything outside the e2e-engineering repo — client repos, client boards, installs into other repos. Skill-improvement plans must neither reference nor touch outlanders.
+_Avoid_: "external work", "client-side change", "cross-repo install"
 
 **Task**: Atomic unit of business intent that owns its own `prd.json` + `progress.txt`. New task = reset both files. Within a task, progress.txt is append-only.
 _Avoid_: "project", "feature" (ambiguous scope)
@@ -224,7 +232,7 @@ _Avoid_: always dispatching full wave (wastes reviewer tokens on mechanical rena
 **Finding hygiene gate**: Pre-verify filter every reviewer finding passes at fan-in (ADR 0035). Requires a cite (`file:line`, test name, log path, or explicit searched-absence scope) AND an implied ACTION, at EVERY severity. No ACTION → downgrade `Important` to `Minor`, drop a `Minor`. Un-cited `Critical`/`Important` → the [[finding-verifier]] wave, never the bin. Un-cited `Minor` → dropped and logged in `review-result.json` `notes`, with no verifier spend — a `Minor` worth fixing is worth citing. Exists because "fix every finding" pays reviewers to pad the list.
 _Avoid_: binning an un-cited `Critical` instead of verifying it; spending a verifier on an un-cited `Minor`; treating the gate as a severity filter (it filters for evidence and actionability, not severity)
 
-**Review convergence loop**: Per-slice loop replacing the old bounce ceiling (ADR 0035). [[Expert-review wave]] → [[finding-verifier]] wave → `open[]` → merge if empty, else bounce → re-review → repeat. Merge gate is zero findings in [[Finding state]] `open` at EVERY severity, `Minor` included. `bounce.rounds` is per slice and ABSOLUTE — new findings from a re-review never reset it — and durable in `resume.json` so a mid-loop death cannot restart the count. **Cap = 4**; on entering round 5 the slice MERGES anyway and its residue becomes a [[Followup record]]. Review-driven slice `blocked` is retired; `blocked` now means GATE 3 (red tests) only.
+**Review convergence loop**: Per-slice loop replacing the old bounce ceiling (ADR 0035; v2 amendment 2026-08-27). [[Expert-review wave]] → [[finding-verifier]] → Phase A: bounce while any Critical/Important open (worker fixes ALL open findings per pass, Minors piggyback) → Phase B: one Minor fix pass + one review (finding owners + test-reviewer) → survivors `carried` → [[Followup record]]. Cap 5 rounds, absolute per slice, never reset; merge gate = zero open Critical/Important. Verify-once + suppression unchanged.
 _Avoid_: treating `Minor` as a free note (it gates the merge); resetting the round counter; marking a slice `blocked` for a quality finding; merging with an `open` finding before the cap
 
 **finding-verifier**: [[Expert agent]] (6th [[Reviewer prompt role]]) that adjudicates ONE unproven finding — either a `NeedsVerification` doubt or an un-cited `Critical`/`Important`. Produces a hard cite or refutes the claim; `inconclusive` counts as refuted (adversarial default, so a starved verifier cannot manufacture a bounce). Read-only, ≤8 tool calls, bounded JSON return. Raises NO new findings — it adjudicates the one it was handed. A finding is verified at most ONCE per slice, and `dropped-refuted` keys are suppressed in `resume.json` so a re-review cannot re-raise them. [[Canonical expert spec]] at `skills/e2e-engineering/agents/finding-verifier.md`; Claude wrapper generated via [[agent wrapper generation]], Codex prompt-injected into a `worker`.
@@ -280,6 +288,21 @@ _Avoid_: duplicating workflow logic into AGENTS.md (it is a router, not a spec);
 
 **Pre-impl expert consultation**: Expert advisory input during the to-prd phase, before PRD approval. Three-tier model: (1) **Default — inline** — orchestrator loads [[canonical expert spec]] files as advisory context while drafting PRD, synthesizes tradeoffs and testing decisions into `prd.json`; no fan-out probe required. (2) **Escalated — manifest-driven fan-out** — for high-risk PRDs (schema-heavy, security-sensitive, cross-service architecture, complex UX/state machines, or user-requested expert review); orchestrator spawns advisor agents, collects advisory manifests, synthesizes into PRD before gate 1. (3) **Required — independent fan-out** — post-impl [[expert-review wave]] only; never sequential inline there. Fan-out [[forcing mechanism]] probe runs only when implementation starts, not during pre-impl.
 _Avoid_: running fan-out probe at pre-impl time (premature — impl may never start); mandating fan-out for every PRD (most are inline-adequate); sequential inline for post-impl review (independence is load-bearing there)
+
+**Routing tier** _[ADR 0039]_: per-agent model tier for DSH review/verify waves. `T0` = non-thinking cheap (finding-verifier, mechanical slots, fan-in); `T1` = thinking medium (judgment reviewers). Impl workers carry T1 discipline via the brief (no model knob on `subagent`). `T2` (same-agent re-review reuse) is RETIRED.
+_Avoid_: editing harness settings to route models — routing is a skill policy.
+
+**carried** _[ADR 0035 amendment]_: finding state for a Minor that survived the Phase-B fix pass + review. Routes to `followups.json` (P3), never re-examined, no verifier spend. Joins `open | fixed | dropped-refuted | open-at-cap`.
+
+**unapproved-prd / oversized-slice stalls** _[2026-08-27]_: flight Step 2 fail-closed stalls. `unapproved-prd`: `gate1Approved:false` → queue reverts `needs-spec`. `oversized-slice`: story `estimatedLoc` missing/out-of-bounds → queue reverts `ready-for-flight` + human split note. `gate1SizingOverride` is the only bypass.
+
+**Stack ownership** _[ADR 0036 amendment]_: the flight owns the compose stack during smoke/gate-5 — `down -v → package build → up --force-recreate --build -d` runs unconditionally. No probe, no ask; the flight tears down and rebuilds. Keep dev work out of the compose stack during a flight.
+
+**Worker brief** _[ADR 0037 amendment]_: the complete inline worker contract — constitution digest + command-rules digest + ACs + integration + compileCmd + lint digest + role digests. Zero skill-file reads; the journaled ready-set manifest IS the brief (empty-message bootstrap unchanged).
+
+**Semantic commit point** _[ADR 0037 amendment]_: the commit boundaries a worker may use — red test, green-AC, refactor, fix pass, chunk, cherry-pick sequence. `compile-check`/`lint-check` run MANDATORY at points (scope follows changed files), optional elsewhere.
+
+**Digest** _[ADR 0037 amendment]_: the canonical ≤15-line checklist section (`## Digest`) inside each `agents/<role>.md` reviewer spec. The flight extracts them at Step 2 for worker briefs + pre-return self-check — single source of truth, never hand-duplicated.
 
 ## Multi-task flight
 
