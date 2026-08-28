@@ -254,7 +254,7 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - git stash during flight — no stash ever; master artifacts committed at clean boundaries only.
 - Leaving master with uncommitted queue/prd/progress/sidecar artifacts before checkout.
 - Cold-reading source files when `codebase-map.md` missing (stall instead — Step 2).
-- Merging with any finding `state: open` before the cap is exhausted (merge gate = zero open findings, Minor included — ADR 0035).
+- Merging with any finding `state: open` before the cap is exhausted (merge gate = zero open Critical/Important; Minors fixed or `carried` — ADR 0035 amendment).
 - Skipping re-review after a mechanical fix (RETIRED — tier picks scope, never whether; no fix merges unread).
 - Binning an un-cited Critical/Important instead of spending a `finding-verifier` on it.
 - Verifying an un-cited Minor (dropped, no verifier spend — a Minor worth fixing is worth citing).
