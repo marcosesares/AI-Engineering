@@ -39,22 +39,25 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# (3) copy cached env/config files + heap.init.gradle from the task worktree (untracked only).
+# (3) carry cached env/config + heap.init.gradle into the slice worktree via the shared
+# bootstrap. It copies gitignored runtime files (.env, .env.*, *.local, properties,
+# compose overrides) plus reasonix.toml (tracked but possibly drifted) from the SOURCE
+# (task worktree) into the slice, pruning node_modules/.git/build/agent-state dirs and
+# logs. Single source of truth — any location/depth rule lives only in that script.
 if (Test-Path -LiteralPath $taskPath) {
-    $patterns = @('heap.init.gradle','.env','.env.*','*.local','local.properties','gradle-local.properties','application-local.*','docker-compose.override.yml','docker-compose.override.yaml')
-    $untracked = & git -C $taskPath ls-files --others --exclude-standard 2>$null
-    foreach ($f in $untracked) {
-        $leaf = Split-Path $f -Leaf
-        foreach ($p in $patterns) {
-            if ($leaf -like $p) {
-                $src = Join-Path $taskPath $f
-                $dst = Join-Path $slicePath $f
-                $dir = Split-Path $dst -Parent
-                if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-                Copy-Item -Path $src -Destination $dst -Force
-                break
-            }
+    $bs = Join-Path $PSScriptRoot 'worktree-bootstrap.ps1'
+    if (Test-Path -LiteralPath $bs) {
+        $bjson = & pwsh -NoProfile -File $bs -Worktree $slicePath -Source $taskPath 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Output ([pscustomobject]@{ ok = $false; verdict = 'bootstrap-failed'; worktree = $slicePath; errors = @((($bjson | Out-String).Trim())) } | ConvertTo-Json -Compress -Depth 10)
+            exit 1
         }
+    }
+    # Fallback (bootstrap missing): copy root reasonix.toml only (the minimal tracked
+    # config a slice needs) so a codebase without env files still gets its agent config.
+    else {
+        $rxSrc = Join-Path $taskPath 'reasonix.toml'
+        if (Test-Path -LiteralPath $rxSrc) { Copy-Item -Path $rxSrc -Destination (Join-Path $slicePath 'reasonix.toml') -Force }
     }
 }
 
