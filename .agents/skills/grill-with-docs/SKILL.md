@@ -85,4 +85,8 @@ Only offer to create an ADR when all three are true:
 
 If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](../../../skills/grill-with-docs/ADR-FORMAT.md).
 
+### Idempotency umbrella (K)
+
+For any create/duplicate-guard task, pin the idempotency sub-case — (a) retry-in-flight of the SAME logical request, or (b) concurrent duplicate of a DISTINCT business event — and its discriminator (idempotency key / request id / business key) before implementation.
+
 </supporting-info>
