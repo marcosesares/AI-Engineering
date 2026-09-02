@@ -1,0 +1,29 @@
+# reasonix.toml - e2e-Engineering (project-level config)
+# User defaults (2026-09-02): deepseek-v4-pro model + no-prompt (YOLO-aligned) posture.
+# Resolution: CLI flag > this file > %AppData%\reasonix\config.toml > built-in defaults.
+
+default_model = "deepseek/deepseek-v4-pro"
+
+[environment]
+enabled = true     # inject OS/shell/tool-version startup summary
+offline = false    # network IS available
+
+[permissions]
+mode = "allow"             # writer fallback when no rule matches: ask|allow|deny
+allow_dynamic_bash = true  # dynamic &&-chains / ${VAR} commands covered by Allow
+deny = [
+  "Bash(git push*)",       # nothing leaves the repo during a flight
+  "Bash(rm -rf*)",         # destructive recursive delete always blocked
+]
+allow = [
+  "Bash(git status*)",
+  "Bash(git diff*)",
+  "Bash(git log*)",
+  "Bash(ls*)",
+]
+
+[sandbox]
+# e2e-flight creates worktrees under C:/Views/e2e-Engineering/.claude/worktrees/
+workspace_root = "C:/Views/e2e-Engineering"
+bash = "off"
+network = true
