@@ -92,6 +92,15 @@ A runtime background flag (`run_in_background`, `Start-Job`, detached spawn) byp
 6. **Runtime background flags VOID timeout budgets (DSH, ADR 0038).** `run_in_background` ignores `timeoutMs` entirely — measured: a 60s sleep under a 20s budget ran 60.8s; a 900s sleep under a 720s budget completed. A background job's ONLY bound is this watchdog. Never "budget" a background job with a timeout number.
 7. **The watchdog loop persists INSIDE the turn.** Bounded `job_output({ wait: true })` reads in a loop; track output GROWTH between reads; status `running` + zero growth > 10 min → kill + `TIMEOUT <cmd> @<budget>s (silent)`. A poll that returns `running` and then stops watching is NOT a watchdog — the payments wedge's last poll was 02:35; nothing read again until a human killed it at 07:12 (4h47m).
 
+## 10. Turn-end markers + wait discipline
+- Running turns (watchdog loops, poll sequences, long producers) end with `@at <phase> | done: | next:` — a status marker so the human can tell "working" from "dead".
+- Any human-chokepoint STOP overrides it: the turn ends with `WAITING:` ALONE. `WAITING:` wins — never end a turn with both.
+- Any wait > 60s → background the command + watchdog (§9). NEVER a foreground sleep loop (`sleep 60 && retry` × n) — a foreground sleep is invisible to the brakes and unbounded by the watchdog.
+
+## 11. State-file write discipline (J)
+- Before committing `.e2e-engineering/**` state artifacts, assert `git branch --show-current` = master — state lives on master; a state commit from a task/slice branch strands it.
+- NEVER `cmd > state-file` redirect for a fallible command — a failed cmd still truncates the file and the flight later reads an empty "state". Write to a temp file (`cmd > .tmp 2>&1`), verify non-empty + exit code, THEN move into place.
+
 ## Red flags (stop)
 - Emitting a shell command with no timeout wrapper and no runtime timeout (ADR 0033 — a hung shell is a runaway neither fan-out nor inline-STOP catches).
 - `docker compose up` without `-d`, or attaching to logs to "watch it come up".
@@ -111,3 +120,7 @@ A runtime background flag (`run_in_background`, `Start-Job`, detached spawn) byp
 - Ending the watchdog poll loop when a read returns `running` (the loop persists in-turn — bounded wait + output-growth check; §9 rule 7).
 - Leaving a killed run's orphan processes up — targeted-PID sweep after every kill (§9).
 - Committing a full log as evidence — evidence = counts + ≤20-line excerpts; full logs stay gitignored on disk (ADR 0036).
+- Ending a turn with both `@at …` and `WAITING:` (STOP ends `WAITING:`-alone; running ends `@at`-alone — §10).
+- Foregrounding a wait > 60s instead of background + watchdog (§10).
+- Committing `.e2e-engineering/**` state from a non-master branch (assert `git branch --show-current` = master first — §11).
+- Redirecting a fallible command straight into a state file — temp file + verify non-empty, then move (§11).

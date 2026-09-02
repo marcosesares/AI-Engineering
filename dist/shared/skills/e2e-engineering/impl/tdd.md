@@ -35,17 +35,20 @@ Validate story is implementable:
 Gap found → escalate ONE question to orchestrator. DO NOT guess.
 
 ### 2. Red-green-refactor
-- **RED** — write failing test FIRST for behavior in acceptance criteria. Run it; confirm fails for right reason. **HARD GATE 2: no production code before failing test.**
+- **RED** — write failing test FIRST for behavior in acceptance criteria. Run it; confirm fails for right reason. **Red-proof validity (G):** the red run must fail ON THE ASSERTION — expected-vs-actual mismatch — never on a crash/compile error/timeout. A crash proves nothing about the behavior; fix the test harness until the only failure is the assertion, and record THAT run as the red proof. **HARD GATE 2: no production code before failing test.**
 - **GREEN** — write minimum production code to pass. Constitution: simplicity-first (new code), surgical-changes (editing existing).
 - **REFACTOR** — clean up with tests green. Stay in scope (no "while I'm here").
 - **Lint contract:** write to the injected lint digest from line one — treat it as part of the ACs. Conforming code passes the commit-point check first try.
 - **Checks at SEMANTIC COMMIT POINTS** (ADR 0037 amendment). Commit ONLY at: (1) red test (Gate 2), (2) green impl per AC, (3) refactor unit, (4) one commit per fix pass, (5) one commit per chunk, (6) one commit per cherry-pick sequence (restore). At each commit point run `compile-check.ps1` + `lint-check.ps1` with scope following the commit's changed files (frontend-only → tsc+eslint; backend-only → compile). Ad-hoc compiles between points are allowed while debugging; the gate fires at points. ~3–6 commits per in-bounds slice. The orchestrator's Step-3.4 gate stays authoritative.
+   - **Heartbeat (F2).** After EVERY semantic commit, touch an untracked `<slice>.heartbeat` file at the worktree root — one line: sliceId + commit sha + timestamp. The orchestrator's watchdog reads it as your liveness signal (dsh-runtime.md): no heartbeat + no disk change = stalled worker.
+   - **Incremental commits (I).** Every commit point is a REAL git commit — a hard-killed worker's branch must already hold every completed unit; the orchestrator reconciles from commits, not chat, and a kill loses at most the unit in flight.
+   - **Stranded-file kill protocol (I).** If you are killed mid-slice, LEAVE the heartbeat + untracked evidence files in place — the orchestrator records them as stranded-file evidence and reconciles from your branch commits. Never self-clean them before the orchestrator records.
 
 ### 3. Automate API/integration (Fork Y — ADR 0024)
 For any API/endpoint this slice implements: write red-green **Playwright `request`** tests (part of gate 2) per [api-testing standard](../standards/api-testing.md) — but if the project already has API-test conventions (ARCHITECTURE.md §4), follow THOSE. M1: tests hit the running docker-compose stack; isolate/clean own data. **UI is NOT automated** (Fork Y): a UI feature test-case is disposition **Manual** — do NOT write Playwright browser/POM code; ensure the Manual test-case doc exists for the human-QA walk. Regression/cross-slice cases NOT yours.
 
 ### 4. Debug escalation (HARD GATE 3)
-Fix fails 3 times → STOP. Do not blind-retry. Return to orchestrator reporting 3-strike. Orchestrator re-dispatches ONCE with [systematic-debugging](./systematic-debugging.md).
+Fix fails 3 times → STOP. Do not blind-retry. Return to orchestrator reporting 3-strike. Orchestrator re-dispatches ONCE with [systematic-debugging](./systematic-debugging.md). **Changed approach on second failure (H):** if your SECOND attempt on the same failure uses the same brief unchanged — same repro, same env, same code path — that IS a blind retry: stop and change at least one real variable (repro strategy, environment, or scope) before the third attempt; failing that, escalate to Gate 3 early rather than spend a guaranteed-same strike.
 
 ### 4b. Chunk-driver mode (ADR 0037)
 
@@ -70,6 +73,7 @@ NEVER commit `evidence/` dirs — evidence files are untracked only, like env/co
 
 ## Red flags (stop)
 - Production code before failing test (gate 2 violation).
+- Recording a red run as proof when the failure was a crash/compile error, not the assertion (fix the harness until the failure IS the assertion — G).
 - Guessing past gap instead of escalating one question.
 - Blind-retrying 4th time after 3 strikes (gate 3 violation).
 - Running a command unbounded/interactive, or foregrounding a watch/serve/dev script — it never exits and hangs the whole spawn (ADR 0033).
@@ -83,5 +87,6 @@ NEVER commit `evidence/` dirs — evidence files are untracked only, like env/co
 - Committing an `evidence/` dir or any log (untracked only — ADR 0037 amendment).
 - Skipping the canary (first tool call must be `git rev-parse HEAD` + `CANARY-OK`).
 - Committing outside a semantic commit point.
+- Skipping the `<slice>.heartbeat` at a semantic commit point (F2 — the watchdog reads disk, not chat).
 - Running a check with scope wider than the commit's changed files (never whole-repo lint — pre-existing debt is out of slice scope).
 - Opening skill files instead of using the complete brief (gap-check escalation is the only exception path).

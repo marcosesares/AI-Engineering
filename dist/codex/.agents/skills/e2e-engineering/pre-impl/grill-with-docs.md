@@ -23,6 +23,7 @@ Interview user relentlessly until shared, concrete understanding. Walk each bran
 
 ## Gate conditional pre-impl steps
 Before exiting, decide and record which conditional steps fire:
+- **K idempotency umbrella — for any create/duplicate-guard task.** Two sub-cases: (a) retry-in-flight of the SAME logical request, (b) concurrent duplicate of a DISTINCT business event. The task must PICK ONE and state its discriminator (idempotency key / request id / business key) in the PRD — or flag it as an explicit decision BEFORE implementation. A create/duplicate-guard PRD with no stated sub-case + discriminator is incomplete; do not exit grilling without it resolved.
 - **research?** — YES if task leans on external APIs / unfamiliar libs / unknown protocols.
 - **prototype?** — YES if taste/UX or state-machine uncertainty needs concrete feedback. Pick branch: **ui** (visual variants) or **logic** (state machine / terminal).
 - **design?** — fires the [design](design.md) step (sets register, seeds/records DESIGN.md). Explicit YES/NO:

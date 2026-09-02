@@ -19,6 +19,8 @@ Durable project docs at repo ROOT: `CONTEXT.md` (glossary), [constitution](const
 
 **Waiting signal — never go silent at a chokepoint (ADR 0031).** Every time the flow STOPs for human input, the LAST line you emit MUST be a single plain-text marker: `WAITING: <action needed> — <task/context>`. Without it the human cannot tell "agent working" from "agent waiting" and wall-time dies (root cause: a multi-hour silent Gate-1 stall). One marker per STOP, always the final line. Concrete wording is given at each STOP below (route fork, bucket selection, Gate 1, batch/launch, run-selection checkbox) and per question in [grill-with-docs](pre-impl/grill-with-docs.md).
 
+**Turn-end invariant.** A RUNNING turn (no STOP) ends with `@at <phase> | done: | next:`; a turn that STOPS for human input ends with `WAITING:` ALONE. The two never combine — `WAITING:` wins and overrides the `@at` marker.
+
 ---
 
 ## Capability check (implementation paths only)

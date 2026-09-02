@@ -34,6 +34,20 @@ Read ONCE at flight Step 0 when the runtime is DSH (DeepSeek Harness): the Step-
 
 Never exceed the table — bigger ≠ safer (the drain's 12–13m/30m values matched these lines; the wedge was unboundedness, not size). Cold cache: ONE 2× retry, logged.
 
+## Worker watchdog — subagent silence (F2/D7)
+
+Impl workers are background `subagent`s with no log to watch — their liveness is DISK. The worker MUST write an untracked `<slice>.heartbeat` at every semantic commit point (tdd.md §2). Orchestrator liveness snapshot per worker at each poll: heartbeat mtime + `git status --porcelain` + untracked-file mtimes in the worktree.
+
+- **15 min** no heartbeat / no disk change → `stalled_warning`: ADVISORY snapshot-check (`list_agents` + fresh `git status` + heartbeat read), NO kill.
+- **30 min** no disk change → hard kill: `job_kill` + targeted-PID sweep + record the stranded files (heartbeat, untracked evidence) for the reconcile path.
+- **Hard-kill scope:** recycle the worker first — kill, then re-dispatch a fresh worker with the same committed brief (WATCHDOG/WORKER RECYCLE). A repeated hard-kill on the SAME slice → pause the flight for a human; never auto-kill the same slice a third time.
+
+## Turn discipline (DSH long producers)
+
+- Every RUNNING turn — watchdog loops, poll sequences, long producers — ends with `@at <phase> | done: <what finished> | next: <next step>`.
+- A turn that STOPS for human input overrides it: end with `WAITING:` ALONE. `WAITING:` wins — never end a turn with both.
+- Touch the `<slice>.heartbeat` at every semantic commit point (F2) — a long turn with no heartbeat to show is indistinguishable from a hang.
+
 ## Review/verify tiers (ADR 0039)
 
 | Tier | Slots | Budget |
@@ -50,7 +64,7 @@ Impl workers stay background `subagent` with prompt-discipline contracts (T1 dis
 1. **Fan-out probe** — spawn a trivial background subagent ("return OK"), confirm the notice arrives → fan-out available.
 2. **Worker-change probe** — probe worker runs `git rev-parse` + `git status` in the repo via pwsh → shared FS, commits visible (probe-verified).
 3. **Bounded-shell probe** — foreground pwsh `Start-Sleep 45` under `timeoutMs: 20000` → expect kill ~20s, `timedOut: true`. Not killed → treat as unbounded-shell stall.
-4. **Write-capability probe (DSH-only)** — create + delete a temp file at the task root. Denied → `<e2e-stall reason="sandbox-write-denied" />` + EXIT — a sandbox policy denial is FINAL, never retry/loop.
+4. **Two-tier write probe (DSH-only).** Tier 1 — READ the permission mode BEFORE writing: `[permissions] mode="allow"` + `allow_dynamic_bash=true` + workspace-root confinement is the DSH full-access writer posture (Q8b); a mode already read-only needs no write attempt. Tier 2 — spawn ONE disposable write worker with the SAME `write_paths` as real impl workers, brief: create + commit a probe file on a throwaway branch. Commit visible from orchestrator → worker writes confirmed. Worker lacks `bash`/writer (permissions config cannot override runtime worker-stripping) → record `resume.json mode: serial` and fly serial (A) — NEVER preset serial. Write denied REPEATEDLY after mode confirmed allow → `<e2e-stall reason="sandbox-write-denied" />` + EXIT — a repeated policy denial is FINAL, never retry/loop; a single denial before the mode is confirmed is diagnosis, not a stall.
 5. **Workflow-availability probe** — run a trivial workflow script (one `agent()`, one-word reply, `schema`-validated). Success → workflow review waves active (ADR 0039); failure → subagent review fallback, no stall.
 6. **Concurrency budget probe** — read free RAM + CPU count via pwsh; persist `resume.json` `concurrency` cap (concurrent `subagent` dispatches + workflow parallelism). Default when unreadable: 2 workers / 4 reviewers.
 
@@ -62,6 +76,7 @@ Impl workers stay background `subagent` with prompt-discipline contracts (T1 dis
 
 ## Dispatch notes
 
+- **Invocation cheat-sheet.** `tools.subagent({ prompt, write_paths })` — there is NO `name` field; the agent-task-name slug lives INSIDE the prompt. Workers: `prompt` = self-contained manifest brief + `write_paths` = task worktree (repo root for task-state work). Reviewers/verifiers: READ-ONLY — `prompt` = review-bundle path + canonical spec, NO `write_paths` ever.
 - Subagents receive the prompt ALWAYS (empty-message bootstrap stays fallback-only — tdd.md §0).
 - Workers = clean-context `subagent` (self-contained manifest prompt); reviewers = clean-context `subagent` (review-bundle path, never paste diffs/logs — DSH truncates long tool output to a tail + spillPath; read tails).
 - `list_agents` `running`/`idle`/`ready` is the worker-stall signal — a zero-commit wave with workers alive = throughput stall → chunk-driver degrade, never `worker-changes-unavailable`.

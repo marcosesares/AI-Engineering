@@ -13,8 +13,12 @@ Invoked by orchestrator ONCE when slice sub-agent reports 3 failed fix attempts 
 - **Still red after single re-dispatch** → orchestrator marks story `blocked` in prd.json, appends `## Blocked` (id | why | 4-phase diagnosis) to progress.txt, keeps draining ready set.
 - Escalate to HUMAN only on **stall**: no ready work remains, or every remaining story depends on blocked one.
 
+## Re-dispatch contract (H)
+A re-dispatch MUST change at least one variable — repro strategy, environment, or scope — from the failed attempt. Sending the same brief unchanged is a blind retry, and blinds the root cause. The changed variable goes IN the brief so the follow-up worker starts from the delta, not from scratch.
+
 ## Red flags (stop)
 - More than one re-dispatch per story (ONCE — then `blocked`).
 - Fixing without reproduction.
 - Changing multiple variables at once (can't attribute fix).
 - Silently deferring block to human-QA (E2E gate could deadlock — mark `blocked` now, escalate on stall).
+- Re-dispatching with the same brief unchanged (H — change ≥1 variable: repro strategy/env/scope, and write it into the brief).
