@@ -2,7 +2,6 @@
 .mcp.json
 /.superpowers
 AGENTS.e2e-engineering.md
-/docs
 .idea/copilot.data.migration.ask2agent.xml
 .idea/e2e-Engineering.iml
 .idea/misc.xml
